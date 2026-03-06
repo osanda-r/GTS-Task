@@ -6,7 +6,7 @@
         <span class="text-h5 font-weight-bold">GTS</span>
         <span class="text-caption" style="vertical-align: super; font-size: 10px">ACTIVE</span>
       </div>
-      
+
       <p class="text-caption text-grey">Product Management System</p>
     </div>
 
