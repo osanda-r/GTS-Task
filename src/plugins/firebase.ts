@@ -1,19 +1,27 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
+import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics'
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
-};
+  apiKey: 'AIzaSyA9SowGSw_n2FzrhgmRSQr43rAzYKb04Z0',
+  authDomain: 'gts-task-c0ed1.firebaseapp.com',
+  projectId: 'gts-task-c0ed1',
+  storageBucket: 'gts-task-c0ed1.firebasestorage.app',
+  messagingSenderId: '658085115229',
+  appId: '1:658085115229:web:f097d1f1f49adfa5b7e4b4',
+  measurementId: 'G-Q1BHQVE8WP',
+}
 
 // Initialize Firebase
 export const firebaseApp = initializeApp(firebaseConfig)
 export const db = getFirestore(firebaseApp)
 export const auth = getAuth(firebaseApp)
+
+export const analyticsPromise: Promise<Analytics | null> =
+  typeof window !== 'undefined'
+    ? isSupported()
+        .then((supported) => (supported ? getAnalytics(firebaseApp) : null))
+        .catch(() => null)
+    : Promise.resolve(null)
