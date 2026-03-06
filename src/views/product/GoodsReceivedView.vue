@@ -10,28 +10,26 @@
         <v-row dense>
           <v-col cols="12" md="2">
             <label class="field-label">Color</label>
-            <v-select
+            <v-text-field
               v-model="form.color"
-              :items="colors"
-              placeholder="Select Color"
+              placeholder="Enter Color"
               variant="outlined"
               density="comfortable"
               hide-details
               rounded="lg"
-            ></v-select>
+            ></v-text-field>
           </v-col>
 
           <v-col cols="12" md="2">
             <label class="field-label">Type</label>
-            <v-select
+            <v-text-field
               v-model="form.type"
-              :items="types"
-              placeholder="Select Type"
+              placeholder="Enter Type"
               variant="outlined"
               density="comfortable"
               hide-details
               rounded="lg"
-            ></v-select>
+            ></v-text-field>
           </v-col>
 
           <v-col cols="12" md="2">
@@ -63,15 +61,14 @@
 
           <v-col cols="12" md="2">
             <label class="field-label">Supplier (Optional)</label>
-            <v-select
+            <v-text-field
               v-model="form.supplier"
-              :items="suppliers"
-              placeholder="Select Supplier"
+              placeholder="Enter Supplier"
               variant="outlined"
               density="comfortable"
               hide-details
               rounded="lg"
-            ></v-select>
+            ></v-text-field>
           </v-col>
 
           <v-col cols="12" md="2">
@@ -93,7 +90,7 @@
           <v-btn class="mr-3" color="grey-lighten-4" variant="elevated" @click="clearForm">
             CLEAR
           </v-btn>
-          <v-btn color="success" variant="flat" @click="saveRecord">SAVE</v-btn>
+          <v-btn color="success" variant="flat" :loading="isSaving" @click="saveRecord">SAVE</v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -166,6 +163,10 @@
     </v-card>
 
     <v-btn class="floating-menu" color="success" icon="mdi-menu" size="56" elevation="8"></v-btn>
+
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
+      {{ snackbar.text }}
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -203,12 +204,17 @@ const goodsCollection = collection(db, 'goodsReceived')
 const search = ref('')
 const isLoading = ref(false)
 const isSaving = ref(false)
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+})
 const form = ref({
-  color: null as string | null,
-  type: null as string | null,
+  color: '',
+  type: '',
   grossWeight: '',
   moisture: '',
-  supplier: null as string | null,
+  supplier: '',
   remark: '',
 })
 
@@ -232,18 +238,6 @@ const headers = [
 ]
 
 const goods = ref<GoodsRecord[]>([])
-
-const colors = computed(() => {
-  return Array.from(new Set(goods.value.map((g) => g.color).filter(Boolean)))
-})
-
-const types = computed(() => {
-  return Array.from(new Set(goods.value.map((g) => g.type).filter(Boolean)))
-})
-
-const suppliers = computed(() => {
-  return Array.from(new Set(goods.value.map((g) => g.supplier).filter(Boolean)))
-})
 
 const toDisplayDate = (value: Timestamp | string | null) => {
   if (!value) return '-'
@@ -269,14 +263,47 @@ const mapDocToRecord = (id: string, data: Record<string, unknown>): GoodsRecord 
   }
 }
 
+const sortByCreatedAtDesc = (rows: GoodsRecord[]) => {
+  return [...rows].sort((a, b) => {
+    const aTime =
+      a.createdAt instanceof Timestamp
+        ? a.createdAt.toMillis()
+        : a.createdAt
+          ? new Date(a.createdAt).getTime()
+          : 0
+    const bTime =
+      b.createdAt instanceof Timestamp
+        ? b.createdAt.toMillis()
+        : b.createdAt
+          ? new Date(b.createdAt).getTime()
+          : 0
+    return bTime - aTime
+  })
+}
+
+const showToast = (text: string, color: 'success' | 'error' | 'warning' | 'info') => {
+  snackbar.value = {
+    show: true,
+    text,
+    color,
+  }
+}
+
 const loadGoods = async () => {
   isLoading.value = true
   try {
-    const q = query(goodsCollection, orderBy('createdAt', 'desc'))
-    const snapshot = await getDocs(q)
-    goods.value = snapshot.docs.map((row) => mapDocToRecord(row.id, row.data()))
+    let snapshot
+    try {
+      const q = query(goodsCollection, orderBy('createdAt', 'desc'))
+      snapshot = await getDocs(q)
+    } catch {
+      snapshot = await getDocs(goodsCollection)
+    }
+    const rows = snapshot.docs.map((row) => mapDocToRecord(row.id, row.data()))
+    goods.value = sortByCreatedAtDesc(rows)
   } catch (error) {
     console.error('Failed to load goods received records:', error)
+    showToast('Failed to load records from Firebase.', 'error')
   } finally {
     isLoading.value = false
   }
@@ -293,11 +320,11 @@ const filteredGoods = computed(() => {
 
 const clearForm = () => {
   form.value = {
-    color: null,
-    type: null,
+    color: '',
+    type: '',
     grossWeight: '',
     moisture: '',
-    supplier: null,
+    supplier: '',
     remark: '',
   }
   touched.value.grossWeight = false
@@ -314,13 +341,17 @@ const saveRecord = async () => {
 
   const grossWeight = Number(form.value.grossWeight)
   const moisture = Number(form.value.moisture || 0)
-  if (!Number.isFinite(grossWeight) || grossWeight <= 0) return
+  if (!Number.isFinite(grossWeight) || grossWeight <= 0) {
+    showToast('Gross weight must be greater than 0.', 'warning')
+    return
+  }
 
   isSaving.value = true
   try {
+    const grn = makeGrn()
     const actualWeight = Math.max(grossWeight - moisture, 0)
-    await addDoc(goodsCollection, {
-      grn: makeGrn(),
+    const docRef = await addDoc(goodsCollection, {
+      grn,
       color: form.value.color ?? '',
       type: form.value.type ?? '',
       grossWeight,
@@ -331,10 +362,33 @@ const saveRecord = async () => {
       createdAt: serverTimestamp(),
     })
 
+    // Optimistic table update so users see the newly saved row immediately.
+    const now = new Date().toISOString()
+    goods.value = [
+      {
+        id: docRef.id,
+        grn,
+        color: form.value.color,
+        type: form.value.type,
+        grossWeight,
+        moisture,
+        actualWeight,
+        supplier: form.value.supplier,
+        remark: form.value.remark,
+        createdAt: now,
+        createdAtDisplay: toDisplayDate(now),
+      },
+      ...goods.value,
+    ]
+
     clearForm()
+    showToast('Record saved to Firebase successfully.', 'success')
+
+    // Sync from backend to ensure server timestamp/order are accurate.
     await loadGoods()
   } catch (error) {
     console.error('Failed to save goods received record:', error)
+    showToast('Save failed. Check Firebase rules/connection.', 'error')
   } finally {
     isSaving.value = false
   }
@@ -344,9 +398,12 @@ const deleteRecord = async (id?: string) => {
   if (!id) return
   try {
     await deleteDoc(doc(db, 'goodsReceived', id))
+    goods.value = goods.value.filter((row) => row.id !== id)
+    showToast('Record deleted.', 'success')
     await loadGoods()
   } catch (error) {
     console.error('Failed to delete record:', error)
+    showToast('Delete failed. Check Firebase rules.', 'error')
   }
 }
 
