@@ -121,7 +121,14 @@
           ></v-text-field>
 
           <div class="d-flex align-center gap-2 flex-wrap">
-            <v-btn color="info" variant="tonal" rounded="pill" prepend-icon="mdi-refresh">
+            <v-btn
+              color="info"
+              variant="tonal"
+              rounded="pill"
+              prepend-icon="mdi-refresh"
+              :loading="isLoading"
+              @click="loadGoods"
+            >
               Refresh
             </v-btn>
             <v-btn color="success" variant="tonal" rounded="pill" prepend-icon="mdi-download">
@@ -136,14 +143,22 @@
         <v-data-table
           :headers="headers"
           :items="filteredGoods"
-          item-value="grn"
+          :loading="isLoading"
+          item-value="id"
           class="goods-table"
           hide-default-footer
+          no-data-text="No records found"
         >
-          <template v-slot:[`item.actions`]>
+          <template v-slot:[`item.actions`]="{ item }">
             <div class="d-flex flex-column align-center py-2">
               <v-btn icon="mdi-eye" size="small" variant="text" color="grey-darken-3"></v-btn>
-              <v-btn icon="mdi-delete" size="small" variant="text" color="error"></v-btn>
+              <v-btn
+                icon="mdi-delete"
+                size="small"
+                variant="text"
+                color="error"
+                @click="deleteRecord(item.id)"
+              ></v-btn>
             </div>
           </template>
         </v-data-table>
@@ -155,9 +170,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore'
+import { db } from '@/plugins/firebase'
 
 type GoodsRecord = {
+  id: string
   grn: string
   color: string
   type: string
@@ -166,14 +194,15 @@ type GoodsRecord = {
   actualWeight: number
   supplier: string
   remark: string
-  createdAt: string
+  createdAt: Timestamp | string | null
+  createdAtDisplay: string
 }
 
-const colors = ['Water White', 'Brown', 'Golden']
-const types = ['Virgin Coconut Oil', 'CH4', 'Coconut Cream']
-const suppliers = ['Wanasinghe Holdings (Pvt) Ltd.', 'Eranga', 'N/A']
+const goodsCollection = collection(db, 'goodsReceived')
 
 const search = ref('')
+const isLoading = ref(false)
+const isSaving = ref(false)
 const form = ref({
   color: null as string | null,
   type: null as string | null,
@@ -198,45 +227,60 @@ const headers = [
   { title: 'Actual Weight (Kg)', key: 'actualWeight' },
   { title: 'Supplier', key: 'supplier' },
   { title: 'Remark', key: 'remark' },
-  { title: 'Created At', key: 'createdAt' },
+  { title: 'Created At', key: 'createdAtDisplay' },
   { title: 'Actions', key: 'actions', sortable: false },
 ]
 
-const goods = ref<GoodsRecord[]>([
-  {
-    grn: 'GRN-005',
-    color: 'Water White',
-    type: 'Virgin Coconut Oil',
-    grossWeight: 600,
-    moisture: 0.002,
-    actualWeight: 599.99,
-    supplier: 'Wanasinghe Holdings (Pvt) Ltd.',
-    remark: 'Good Quality',
-    createdAt: '12/26/2025',
-  },
-  {
-    grn: 'GRN-001',
-    color: 'Brown',
-    type: 'CH4',
-    grossWeight: 100,
-    moisture: 5,
-    actualWeight: 95,
-    supplier: 'Eranga',
-    remark: 'This is test GRN',
-    createdAt: '11/28/2025',
-  },
-  {
-    grn: 'GRN-009',
-    color: 'Golden',
-    type: 'Coconut Cream',
-    grossWeight: 250,
-    moisture: 2.1,
-    actualWeight: 247.5,
-    supplier: 'N/A',
-    remark: 'Sample intake',
-    createdAt: '01/03/2026',
-  },
-])
+const goods = ref<GoodsRecord[]>([])
+
+const colors = computed(() => {
+  return Array.from(new Set(goods.value.map((g) => g.color).filter(Boolean)))
+})
+
+const types = computed(() => {
+  return Array.from(new Set(goods.value.map((g) => g.type).filter(Boolean)))
+})
+
+const suppliers = computed(() => {
+  return Array.from(new Set(goods.value.map((g) => g.supplier).filter(Boolean)))
+})
+
+const toDisplayDate = (value: Timestamp | string | null) => {
+  if (!value) return '-'
+  const date = value instanceof Timestamp ? value.toDate() : new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('en-US').format(date)
+}
+
+const mapDocToRecord = (id: string, data: Record<string, unknown>): GoodsRecord => {
+  const createdAt = (data.createdAt as Timestamp | string | null) ?? null
+  return {
+    id,
+    grn: String(data.grn ?? ''),
+    color: String(data.color ?? ''),
+    type: String(data.type ?? ''),
+    grossWeight: Number(data.grossWeight ?? 0),
+    moisture: Number(data.moisture ?? 0),
+    actualWeight: Number(data.actualWeight ?? 0),
+    supplier: String(data.supplier ?? ''),
+    remark: String(data.remark ?? ''),
+    createdAt,
+    createdAtDisplay: toDisplayDate(createdAt),
+  }
+}
+
+const loadGoods = async () => {
+  isLoading.value = true
+  try {
+    const q = query(goodsCollection, orderBy('createdAt', 'desc'))
+    const snapshot = await getDocs(q)
+    goods.value = snapshot.docs.map((row) => mapDocToRecord(row.id, row.data()))
+  } catch (error) {
+    console.error('Failed to load goods received records:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
 
 const filteredGoods = computed(() => {
   const query = search.value.trim().toLowerCase()
@@ -259,13 +303,60 @@ const clearForm = () => {
   touched.value.grossWeight = false
 }
 
-const saveRecord = () => {
-  touched.value.grossWeight = true
-  if (showWeightError.value) return
-
-  // Stub action to keep UI flow while backend is not connected.
-  console.log('Saving goods received record', form.value)
+const makeGrn = () => {
+  const now = Date.now().toString().slice(-5)
+  return `GRN-${now}`
 }
+
+const saveRecord = async () => {
+  touched.value.grossWeight = true
+  if (showWeightError.value || isSaving.value) return
+
+  const grossWeight = Number(form.value.grossWeight)
+  const moisture = Number(form.value.moisture || 0)
+  if (!Number.isFinite(grossWeight) || grossWeight <= 0) return
+
+  isSaving.value = true
+  try {
+    const actualWeight = Math.max(grossWeight - moisture, 0)
+    await addDoc(goodsCollection, {
+      grn: makeGrn(),
+      color: form.value.color ?? '',
+      type: form.value.type ?? '',
+      grossWeight,
+      moisture,
+      actualWeight,
+      supplier: form.value.supplier ?? '',
+      remark: form.value.remark,
+      createdAt: serverTimestamp(),
+    })
+
+    clearForm()
+    await loadGoods()
+  } catch (error) {
+    console.error('Failed to save goods received record:', error)
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const deleteRecord = async (id?: string) => {
+  if (!id) return
+  try {
+    await deleteDoc(doc(db, 'goodsReceived', id))
+    await loadGoods()
+  } catch (error) {
+    console.error('Failed to delete record:', error)
+  }
+}
+
+onMounted(() => {
+  loadGoods()
+})
+
+onBeforeUnmount(() => {
+  // No persistent listeners are used; method kept for lifecycle symmetry.
+})
 </script>
 
 <style scoped>
