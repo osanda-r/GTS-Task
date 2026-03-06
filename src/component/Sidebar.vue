@@ -111,11 +111,11 @@ const isActive = (path: string) => {
 }
 
 .v-list-item--active {
-  background-color: #4fca2249 !important;
+  background-color: #44ff0033 !important;
 }
 
 .v-list-item:hover {
-  background-color: #2f85338e;
+  background-color: #2f85332a;
 }
 
 .v-list-subheader {
