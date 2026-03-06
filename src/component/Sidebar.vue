@@ -72,6 +72,10 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
+defineOptions({
+  name: 'AppSidebar',
+})
+
 const props = defineProps<{
   modelValue: boolean
 }>()
