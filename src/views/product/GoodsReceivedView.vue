@@ -183,7 +183,9 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore'
-import { db } from '@/plugins/firebase'
+import { signInAnonymously } from 'firebase/auth'
+import type { FirebaseError } from 'firebase/app'
+import { auth, db } from '@/plugins/firebase'
 
 type GoodsRecord = {
   id: string
@@ -204,6 +206,7 @@ const goodsCollection = collection(db, 'goodsReceived')
 const search = ref('')
 const isLoading = ref(false)
 const isSaving = ref(false)
+const authWarningShown = ref(false)
 const snackbar = ref({
   show: false,
   text: '',
@@ -289,9 +292,61 @@ const showToast = (text: string, color: 'success' | 'error' | 'warning' | 'info'
   }
 }
 
+const getFirebaseErrorMessage = (error: unknown) => {
+  const e = error as FirebaseError | undefined
+  const code = e?.code ?? 'unknown'
+
+  switch (code) {
+    case 'auth/configuration-not-found':
+      return 'Firebase Auth is not configured for this project. Configure Auth or use Firestore rules that do not require auth.'
+    case 'auth/operation-not-allowed':
+      return 'Enable Anonymous sign-in in Firebase Authentication to allow this app session.'
+    case 'permission-denied':
+      return 'Permission denied. Update Firestore rules or sign in with an allowed user.'
+    case 'unauthenticated':
+      return 'Not authenticated. Please sign in before saving data.'
+    case 'unavailable':
+      return 'Firebase service unavailable. Check your internet connection.'
+    case 'failed-precondition':
+      return 'Firestore needs setup (database/index/rules). Check Firebase console.'
+    case 'not-found':
+      return 'Firestore database or collection not found.'
+    default:
+      return e?.message ?? 'Firebase request failed.'
+  }
+}
+
+const ensureFirebaseSession = async () => {
+  if (auth.currentUser) return true
+
+  try {
+    await signInAnonymously(auth)
+    return true
+  } catch (error) {
+    const e = error as FirebaseError | undefined
+    const code = e?.code ?? ''
+
+    // If Auth is not configured, continue and let Firestore rules decide access.
+    if (code === 'auth/configuration-not-found' || code === 'auth/operation-not-allowed') {
+      if (!authWarningShown.value) {
+        showToast(getFirebaseErrorMessage(error), 'warning')
+        authWarningShown.value = true
+      }
+      return true
+    }
+
+    console.error('Anonymous sign-in failed:', error)
+    showToast(getFirebaseErrorMessage(error), 'error')
+    return false
+  }
+}
+
 const loadGoods = async () => {
   isLoading.value = true
   try {
+    const hasSession = await ensureFirebaseSession()
+    if (!hasSession) return
+
     let snapshot
     try {
       const q = query(goodsCollection, orderBy('createdAt', 'desc'))
@@ -303,7 +358,7 @@ const loadGoods = async () => {
     goods.value = sortByCreatedAtDesc(rows)
   } catch (error) {
     console.error('Failed to load goods received records:', error)
-    showToast('Failed to load records from Firebase.', 'error')
+    showToast(getFirebaseErrorMessage(error), 'error')
   } finally {
     isLoading.value = false
   }
@@ -348,6 +403,9 @@ const saveRecord = async () => {
 
   isSaving.value = true
   try {
+    const hasSession = await ensureFirebaseSession()
+    if (!hasSession) return
+
     const grn = makeGrn()
     const actualWeight = Math.max(grossWeight - moisture, 0)
     const docRef = await addDoc(goodsCollection, {
@@ -388,7 +446,7 @@ const saveRecord = async () => {
     await loadGoods()
   } catch (error) {
     console.error('Failed to save goods received record:', error)
-    showToast('Save failed. Check Firebase rules/connection.', 'error')
+    showToast(getFirebaseErrorMessage(error), 'error')
   } finally {
     isSaving.value = false
   }
@@ -397,13 +455,16 @@ const saveRecord = async () => {
 const deleteRecord = async (id?: string) => {
   if (!id) return
   try {
+    const hasSession = await ensureFirebaseSession()
+    if (!hasSession) return
+
     await deleteDoc(doc(db, 'goodsReceived', id))
     goods.value = goods.value.filter((row) => row.id !== id)
     showToast('Record deleted.', 'success')
     await loadGoods()
   } catch (error) {
     console.error('Failed to delete record:', error)
-    showToast('Delete failed. Check Firebase rules.', 'error')
+    showToast(getFirebaseErrorMessage(error), 'error')
   }
 }
 
