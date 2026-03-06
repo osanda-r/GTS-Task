@@ -299,8 +299,9 @@ const getFirebaseErrorMessage = (error: unknown) => {
   switch (code) {
     case 'auth/configuration-not-found':
       return 'Firebase Auth is not configured for this project. Configure Auth or use Firestore rules that do not require auth.'
+    case 'auth/admin-restricted-operation':
     case 'auth/operation-not-allowed':
-      return 'Enable Anonymous sign-in in Firebase Authentication to allow this app session.'
+      return 'Enable Anonymous sign-in in Firebase Console: Authentication → Sign-in method → Anonymous.'
     case 'permission-denied':
       return 'Permission denied. Update Firestore rules or sign in with an allowed user.'
     case 'unauthenticated':
@@ -327,7 +328,11 @@ const ensureFirebaseSession = async () => {
     const code = e?.code ?? ''
 
     // If Auth is not configured, continue and let Firestore rules decide access.
-    if (code === 'auth/configuration-not-found' || code === 'auth/operation-not-allowed') {
+    if (
+      code === 'auth/configuration-not-found' ||
+      code === 'auth/operation-not-allowed' ||
+      code === 'auth/admin-restricted-operation'
+    ) {
       if (!authWarningShown.value) {
         showToast(getFirebaseErrorMessage(error), 'warning')
         authWarningShown.value = true
@@ -442,7 +447,6 @@ const saveRecord = async () => {
     clearForm()
     showToast('Record saved to Firebase successfully.', 'success')
 
-    // Sync from backend to ensure server timestamp/order are accurate.
     await loadGoods()
   } catch (error) {
     console.error('Failed to save goods received record:', error)

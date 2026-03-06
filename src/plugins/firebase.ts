@@ -19,8 +19,10 @@ export const firebaseApp = initializeApp(firebaseConfig)
 export const db = getFirestore(firebaseApp)
 export const auth = getAuth(firebaseApp)
 
+const analyticsEnabled = import.meta.env.VITE_ENABLE_ANALYTICS === 'true'
+
 export const analyticsPromise: Promise<Analytics | null> =
-  typeof window !== 'undefined'
+  analyticsEnabled && typeof window !== 'undefined'
     ? isSupported()
         .then((supported) => (supported ? getAnalytics(firebaseApp) : null))
         .catch(() => null)
