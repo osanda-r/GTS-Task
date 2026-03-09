@@ -1,0 +1,277 @@
+<template>
+  <v-container fluid>
+    <v-row>
+      <v-col cols="12">
+        <div class="d-flex align-center mb-4">
+          <v-btn icon="mdi-arrow-left" variant="text" @click="goBack"></v-btn>
+          <h1 class="text-h4 font-weight-bold ml-2">Add New User</h1>
+        </div>
+
+        <v-card max-width="800" class="mx-auto">
+          <v-card-text class="pa-6">
+            <v-form ref="formRef" v-model="valid" @submit.prevent="handleAddUser">
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="form.fullName"
+                    :rules="nameRules"
+                    label="Full Name"
+                    prepend-inner-icon="mdi-account-outline"
+                    variant="outlined"
+                    color="primary"
+                    density="comfortable"
+                    required
+                  ></v-text-field>
+                </v-col>
+
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="form.email"
+                    :rules="emailRules"
+                    label="Email"
+                    prepend-inner-icon="mdi-email-outline"
+                    variant="outlined"
+                    color="primary"
+                    density="comfortable"
+                    required
+                  ></v-text-field>
+                </v-col>
+
+                <v-col cols="12" md="6">
+                  <v-select
+                    v-model="form.role"
+                    :items="roleOptions"
+                    :rules="roleRules"
+                    label="Role"
+                    prepend-inner-icon="mdi-shield-account"
+                    variant="outlined"
+                    color="primary"
+                    density="comfortable"
+                    required
+                  ></v-select>
+                </v-col>
+
+                <v-col cols="12" md="6">
+                  <v-select
+                    v-model="form.status"
+                    :items="statusOptions"
+                    :rules="statusRules"
+                    label="Status"
+                    prepend-inner-icon="mdi-check-circle"
+                    variant="outlined"
+                    color="primary"
+                    density="comfortable"
+                    required
+                  ></v-select>
+                </v-col>
+
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="form.password"
+                    :rules="passwordRules"
+                    :type="showPassword ? 'text' : 'password'"
+                    label="Initial Password"
+                    prepend-inner-icon="mdi-lock-outline"
+                    :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                    @click:append-inner="togglePasswordVisibility"
+                    variant="outlined"
+                    color="primary"
+                    density="comfortable"
+                    hint="User can change this after first login"
+                    persistent-hint
+                    required
+                  ></v-text-field>
+                </v-col>
+
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="form.confirmPassword"
+                    :rules="confirmPasswordRules"
+                    :type="showConfirmPassword ? 'text' : 'password'"
+                    label="Confirm Password"
+                    prepend-inner-icon="mdi-lock-check-outline"
+                    :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                    @click:append-inner="toggleConfirmPasswordVisibility"
+                    variant="outlined"
+                    color="primary"
+                    density="comfortable"
+                    required
+                  ></v-text-field>
+                </v-col>
+              </v-row>
+
+              <v-alert v-if="errorMessage" type="error" class="mt-4">{{ errorMessage }}</v-alert>
+
+              <v-alert v-if="successMessage" type="success" class="mt-4">
+                {{ successMessage }}
+              </v-alert>
+
+              <div class="d-flex justify-end gap-3 mt-6">
+                <v-btn color="grey" variant="outlined" @click="goBack">Cancel</v-btn>
+                <v-btn
+                  type="submit"
+                  :loading="loading"
+                  :disabled="!valid"
+                  color="primary"
+                  variant="flat"
+                >
+                  Create User
+                </v-btn>
+              </div>
+            </v-form>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+<script lang="ts" setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { auth, db } from '@/plugins/firebase'
+import inputValidator from '@/helpers/utils/inputValidator'
+
+interface FormValidation {
+  validate: () => Promise<{ valid: boolean }>
+}
+
+const router = useRouter()
+
+const formRef = ref<FormValidation | null>(null)
+const valid = ref(false)
+const form = ref({
+  fullName: '',
+  email: '',
+  role: '',
+  status: 'Active',
+  password: '',
+  confirmPassword: '',
+})
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+const loading = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
+
+const roleOptions = ['Administrator', 'Manager', 'Warehouse Staff', 'User', 'Auditor']
+const statusOptions = ['Active', 'Inactive']
+
+const nameRules = [
+  (v: string) => !!v || 'Full name is required',
+  (v: string) => v.length >= 3 || 'Full name must be at least 3 characters',
+]
+
+const emailRules = [
+  (v: string) => !!v || 'Email is required',
+  (v: string) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
+]
+
+const roleRules = [(v: string) => !!v || 'Role is required']
+const statusRules = [(v: string) => !!v || 'Status is required']
+
+const passwordRules = inputValidator('Password').required().minChar(6).getRules()
+
+const confirmPasswordRules = [
+  (v: string) => !!v || 'Please confirm the password',
+  (v: string) => v === form.value.password || 'Passwords do not match',
+]
+
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value
+}
+
+const toggleConfirmPasswordVisibility = () => {
+  showConfirmPassword.value = !showConfirmPassword.value
+}
+
+const goBack = () => {
+  router.push({ name: 'Users' })
+}
+
+const extractAuthCode = (error: string): string => {
+  if (!error.startsWith('Firebase: Error (')) {
+    return error
+  }
+
+  const match = error.match(/\(auth\/[\w-]+\)/)
+  return match ? match[0].replace(/[()]/g, '') : error
+}
+
+const toUserMessage = (error: string): string => {
+  const code = extractAuthCode(error)
+
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'This email is already in use.'
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.'
+    case 'auth/weak-password':
+      return 'Password is too weak. Use at least 6 characters.'
+    case 'auth/configuration-not-found':
+      return 'Firebase Auth is not configured. Enable Email/Password in Firebase Console.'
+    case 'auth/network-request-failed':
+      return 'Network error. Please check your connection and try again.'
+    default:
+      return `Error: ${code}`
+  }
+}
+
+const handleAddUser = async () => {
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  const validation = await formRef.value?.validate()
+  if (!validation?.valid) {
+    return
+  }
+
+  loading.value = true
+
+  try {
+    // Create user with Firebase Auth
+    const credential = await createUserWithEmailAndPassword(
+      auth,
+      form.value.email,
+      form.value.password,
+    )
+
+    // Update display name
+    await updateProfile(credential.user, {
+      displayName: form.value.fullName,
+    })
+
+    // Create user profile in Firestore
+    await setDoc(doc(db, 'users', credential.user.uid), {
+      uid: credential.user.uid,
+      name: form.value.fullName,
+      email: form.value.email,
+      role: form.value.role,
+      status: form.value.status,
+      createdAt: serverTimestamp(),
+      createdBy: auth.currentUser?.uid || 'admin',
+    })
+
+    successMessage.value = 'User created successfully!'
+
+    // Reset form after success
+    setTimeout(() => {
+      router.push({ name: 'Users' })
+    }, 1500)
+  } catch (error: unknown) {
+    const errorText = error instanceof Error ? error.message : 'Unknown error'
+    errorMessage.value = toUserMessage(errorText)
+    console.error('Add user error:', error)
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<style scoped>
+.gap-3 {
+  gap: 12px;
+}
+</style>

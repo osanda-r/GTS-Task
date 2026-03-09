@@ -20,7 +20,7 @@ router.beforeEach(async (to, from, next) => {
       return next({ name: 'Login' })
     }
 
-    if ((to.name === 'Login' || to.name === 'SignUp') && auth.currentUser) {
+    if (to.name === 'Login' && auth.currentUser) {
       return next({ name: 'Dashboard' })
     }
 

@@ -78,8 +78,10 @@
 
 <script setup lang="ts">
 import { useTheme } from 'vuetify'
+import useAuth from '@/composables/useAuth'
 
 const theme = useTheme()
+const { logout: authLogout } = useAuth()
 
 // Emit event to parent for drawer toggle
 const emit = defineEmits(['toggle-drawer'])
@@ -102,9 +104,8 @@ const goToSettings = () => {
   // Add your navigation logic here
 }
 
-const logout = () => {
-  console.log('Logout')
-  // Add your logout logic here
+const logout = async () => {
+  await authLogout()
 }
 </script>
 

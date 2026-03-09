@@ -64,18 +64,6 @@
               </v-btn>
 
               <v-alert v-if="errorMessage" type="error" class="mb-4">{{ errorMessage }}</v-alert>
-
-              <v-divider class="mb-4"></v-divider>
-
-              <div class="text-center mb-4">
-                <span class="text-grey">Don't have an account? </span>
-                <RouterLink
-                  :to="{ name: 'SignUp' }"
-                  class="text-primary text-decoration-none font-weight-bold"
-                >
-                  Sign Up
-                </RouterLink>
-              </div>
             </v-form>
           </v-card-text>
         </v-card>
@@ -86,7 +74,6 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import inputValidator from '@/helpers/utils/inputValidator'
 import useAuth from '@/composables/useAuth'
 

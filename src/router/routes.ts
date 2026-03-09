@@ -12,12 +12,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/auth/LoginView.vue'),
         meta: { title: 'Sign In' },
       },
-      {
-        path: 'signup',
-        name: 'SignUp',
-        component: () => import('@/views/auth/SignUpView.vue'),
-        meta: { title: 'Sign Up' },
-      },
     ],
   },
 
@@ -63,6 +57,15 @@ const routes: RouteRecordRaw[] = [
           title: 'Users',
           icon: 'mdi-account-multiple',
           showInSidebar: true,
+          requiredRoles: ['Administrator'],
+        },
+      },
+      {
+        path: 'users/add',
+        name: 'AddUser',
+        component: () => import('@/views/users/AddUserView.vue'),
+        meta: {
+          title: 'Add New User',
           requiredRoles: ['Administrator'],
         },
       },
