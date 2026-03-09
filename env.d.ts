@@ -7,6 +7,7 @@ declare module 'vue-router' {
     showInSidebar?: boolean
     requiresAuth?: boolean
     requiredRoles?: string[]
+    requiredPermission?: string
     middleware?: unknown
     type?: string
   }

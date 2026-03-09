@@ -35,7 +35,6 @@ const routes: RouteRecordRaw[] = [
           title: 'Dashboard',
           icon: 'mdi-view-dashboard',
           showInSidebar: true,
-          requiredRoles: ['Administrator', 'Manager', 'Warehouse Staff', 'User', 'Auditor'],
         },
       },
       {
@@ -46,7 +45,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Goods Received',
           icon: 'mdi-truck-delivery',
           showInSidebar: true,
-          requiredRoles: ['Administrator', 'Manager', 'Warehouse Staff'],
+          requiredPermission: 'page.goods_received.view',
         },
       },
       {
@@ -57,7 +56,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Users',
           icon: 'mdi-account-multiple',
           showInSidebar: true,
-          requiredRoles: ['Administrator'],
+          requiredPermission: 'page.users.view',
         },
       },
       {
@@ -66,7 +65,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/users/AddUserView.vue'),
         meta: {
           title: 'Add New User',
-          requiredRoles: ['Administrator'],
+          requiredPermission: 'page.users.create',
         },
       },
       {
@@ -77,7 +76,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Roles',
           icon: 'mdi-shield-account',
           showInSidebar: true,
-          requiredRoles: ['Administrator'],
+          requiredPermission: 'page.roles.manage',
         },
       },
     ],

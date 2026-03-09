@@ -45,6 +45,10 @@ export default function useUserRole() {
     return hasRole(roles)
   }
 
+  const isAdministrator = (): boolean => {
+    return userRole.value?.toLowerCase() === 'administrator'
+  }
+
   const clearRole = () => {
     userRole.value = null
     userProfile.value = null
@@ -57,6 +61,7 @@ export default function useUserRole() {
     fetchUserRole,
     hasRole,
     hasAnyRole,
+    isAdministrator,
     clearRole,
   }
 }
