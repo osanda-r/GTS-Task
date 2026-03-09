@@ -12,6 +12,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/auth/LoginView.vue'),
         meta: { title: 'Sign In' },
       },
+      {
+        path: 'signup',
+        name: 'SignUp',
+        component: () => import('@/views/auth/SignUpView.vue'),
+        meta: { title: 'Sign Up' },
+      },
     ],
   },
 
@@ -19,6 +25,9 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
+    meta: {
+      requiresAuth: true,
+    },
     children: [
       {
         path: '',
@@ -32,6 +41,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Dashboard',
           icon: 'mdi-view-dashboard',
           showInSidebar: true,
+          requiredRoles: ['Administrator', 'Manager', 'Warehouse Staff', 'User', 'Auditor'],
         },
       },
       {
@@ -42,6 +52,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Goods Received',
           icon: 'mdi-truck-delivery',
           showInSidebar: true,
+          requiredRoles: ['Administrator', 'Manager', 'Warehouse Staff'],
         },
       },
       {
@@ -52,6 +63,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Users',
           icon: 'mdi-account-multiple',
           showInSidebar: true,
+          requiredRoles: ['Administrator'],
         },
       },
       {
@@ -62,6 +74,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Roles',
           icon: 'mdi-shield-account',
           showInSidebar: true,
+          requiredRoles: ['Administrator'],
         },
       },
     ],

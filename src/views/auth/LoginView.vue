@@ -47,9 +47,7 @@
                   density="compact"
                   hide-details
                 ></v-checkbox>
-                <a href="#" class="text-primary text-decoration-none">
-                  Forgot password?
-                </a>
+                <a href="#" class="text-primary text-decoration-none"> Forgot password? </a>
               </div>
 
               <v-btn
@@ -71,9 +69,12 @@
 
               <div class="text-center mb-4">
                 <span class="text-grey">Don't have an account? </span>
-                <a href="#" class="text-primary text-decoration-none font-weight-bold">
+                <RouterLink
+                  :to="{ name: 'SignUp' }"
+                  class="text-primary text-decoration-none font-weight-bold"
+                >
                   Sign Up
-                </a>
+                </RouterLink>
               </div>
             </v-form>
           </v-card-text>
@@ -85,6 +86,7 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import inputValidator from '@/helpers/utils/inputValidator'
 import useAuth from '@/composables/useAuth'
 
@@ -103,8 +105,8 @@ const { login } = useAuth()
 
 // Email validation rules
 const emailRules = [
-  v => !!v || 'Email is required',
-  v => /.+@.+\..+/.test(v) || 'E-mail must be valid'
+  (v) => !!v || 'Email is required',
+  (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
 ]
 
 // Password validation rules
@@ -167,7 +169,6 @@ const handleFirebaseError = (error: string) => {
 
 <style scoped>
 .login-container {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
 }
 
