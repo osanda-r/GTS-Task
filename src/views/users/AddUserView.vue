@@ -154,12 +154,7 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="closeRoleDialog">Cancel</v-btn>
-          <v-btn
-            color="primary"
-            variant="flat"
-            :loading="isSavingRole"
-            @click="addCustomRole"
-          >
+          <v-btn color="primary" variant="flat" :loading="isSavingRole" @click="addCustomRole">
             Save Role
           </v-btn>
         </v-card-actions>
@@ -172,15 +167,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import {
-  collection,
-  doc,
-  getDocs,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from 'firebase/firestore'
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
 import { auth, db } from '@/plugins/firebase'
 import inputValidator from '@/helpers/utils/inputValidator'
 
