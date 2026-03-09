@@ -25,24 +25,14 @@
         </v-badge>
       </v-btn>
 
-      <!-- Mobile Icon -->
-      <v-btn icon variant="text">
-        <v-icon>mdi-cellphone</v-icon>
-      </v-btn>
-
-      <!-- Dark Mode Toggle -->
-      <v-btn icon variant="text" @click="toggleTheme">
-        <v-icon>mdi-moon-waning-crescent</v-icon>
-      </v-btn>
-
       <!-- User Profile Menu -->
       <v-menu offset-y>
         <template v-slot:activator="{ props }">
           <v-btn v-bind="props" variant="text" class="text-none ml-2" style="text-transform: none">
-            <v-avatar color="green" size="40" class="mr-2">
-              <span class="text-white font-weight-medium">AD</span>
+            <v-avatar color="primary" size="40" class="mr-2">
+              <span class="text-white font-weight-medium">{{ userInitials }}</span>
             </v-avatar>
-            <span class="mr-1">Admin</span>
+            <span class="mr-1">{{ userName }}</span>
             <v-icon size="small">mdi-chevron-down</v-icon>
           </v-btn>
         </template>
@@ -77,11 +67,32 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useTheme } from 'vuetify'
 import useAuth from '@/composables/useAuth'
+import { auth } from '@/plugins/firebase'
 
 const theme = useTheme()
 const { logout: authLogout } = useAuth()
+
+// get user name and initials for avatar
+const userName = computed(() => {
+  const currentUser = auth.currentUser
+  if (!currentUser) return 'User'
+  return currentUser.displayName || currentUser.email?.split('@')[0] || 'User'
+})
+const userInitials = computed(() => {
+  const currentUser = auth.currentUser
+  if (!currentUser) return 'U'
+
+  const name = currentUser.displayName || currentUser.email?.split('@')[0] || 'User'
+  const parts = name.trim().split(' ')
+
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+  return name.substring(0, 2).toUpperCase()
+})
 
 // Emit event to parent for drawer toggle
 const emit = defineEmits(['toggle-drawer'])

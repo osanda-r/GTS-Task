@@ -145,11 +145,6 @@ const handleFirebaseError = (error: string) => {
   min-height: 100vh;
 }
 
-.login-card {
- 
- 
-}
-
 .text-grey {
   color: #757575;
 }
