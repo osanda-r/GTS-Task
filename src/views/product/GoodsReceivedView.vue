@@ -90,7 +90,13 @@
           <v-btn class="mr-3" color="grey-lighten-4" variant="elevated" @click="clearForm">
             CLEAR
           </v-btn>
-          <v-btn color="success" variant="flat" :loading="isSaving" @click="saveRecord">SAVE</v-btn>
+          <v-btn 
+            color="success" 
+            variant="flat" 
+            :loading="isSaving" 
+            :disabled="!canCreate"
+            :title="!canCreate ? 'You do not have permission to create records' : ''"
+            @click="saveRecord">SAVE</v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -154,6 +160,8 @@
                 size="small"
                 variant="text"
                 color="error"
+                :disabled="!canDelete"
+                :title="!canDelete ? 'You do not have permission to delete records' : ''"
                 @click="deleteRecord(item.id)"
               ></v-btn>
             </div>
@@ -178,10 +186,12 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  getDoc,
   orderBy,
   query,
   serverTimestamp,
   Timestamp,
+  where,
 } from 'firebase/firestore'
 import { signInAnonymously } from 'firebase/auth'
 import type { FirebaseError } from 'firebase/app'
@@ -208,6 +218,8 @@ const search = ref('')
 const isLoading = ref(false)
 const isSaving = ref(false)
 const authWarningShown = ref(false)
+const userPermissions = ref<string[]>([])
+const userRole = ref<string>('')
 const snackbar = ref({
   show: false,
   text: '',
@@ -227,6 +239,12 @@ const touched = ref({
 })
 
 const showWeightError = computed(() => touched.value.grossWeight && !form.value.grossWeight.trim())
+
+// Permission checks
+const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
+const canCreate = computed(() => isAdministrator.value || userPermissions.value.includes('page.goods_received.create'))
+const canEdit = computed(() => isAdministrator.value || userPermissions.value.includes('page.goods_received.edit'))
+const canDelete = computed(() => isAdministrator.value || userPermissions.value.includes('page.goods_received.delete'))
 
 const headers = [
   { title: 'GRN', key: 'grn' },
@@ -347,6 +365,45 @@ const ensureFirebaseSession = async () => {
   }
 }
 
+const loadUserPermissions = async () => {
+  try {
+    if (!auth.currentUser) return
+
+    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
+    if (!userDoc.exists()) {
+      userPermissions.value = []
+      return
+    }
+
+    const roleName = String(userDoc.data().role ?? '').trim()
+    userRole.value = roleName
+
+    // Administrator has all permissions
+    if (roleName.toLowerCase() === 'administrator') {
+      userPermissions.value = [
+        'page.goods_received.view',
+        'page.goods_received.create',
+        'page.goods_received.edit',
+        'page.goods_received.delete',
+      ]
+      return
+    }
+
+    const roleSnapshot = await getDocs(
+      query(collection(db, 'roles'), where('name', '==', roleName))
+    )
+    const roleDoc = roleSnapshot.docs[0]
+    const permissions = Array.isArray(roleDoc?.data().permissions)
+      ? roleDoc.data().permissions.map((p) => String(p))
+      : []
+
+    userPermissions.value = permissions
+  } catch (error) {
+    console.error('Failed to load permissions:', error)
+    userPermissions.value = []
+  }
+}
+
 const loadGoods = async () => {
   isLoading.value = true
   try {
@@ -392,6 +449,11 @@ const clearForm = () => {
 }
 
 const saveRecord = async () => {
+  if (!canCreate.value) {
+    showToast('You do not have permission to create records.', 'error')
+    return
+  }
+
   touched.value.grossWeight = true
   if (showWeightError.value || isSaving.value) return
 
@@ -453,6 +515,11 @@ const saveRecord = async () => {
 }
 
 const deleteRecord = async (id?: string) => {
+  if (!canDelete.value) {
+    showToast('You do not have permission to delete records.', 'error')
+    return
+  }
+
   if (!id) return
   try {
     const hasSession = await ensureFirebaseSession()
@@ -469,6 +536,7 @@ const deleteRecord = async (id?: string) => {
 }
 
 onMounted(() => {
+  loadUserPermissions()
   loadGoods()
 })
 

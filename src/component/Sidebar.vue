@@ -119,7 +119,7 @@ const canViewUsers = computed(
   () => isAdministrator.value || userPermissions.value.includes('page.users.view'),
 )
 const canViewRoles = computed(
-  () => isAdministrator.value || userPermissions.value.includes('page.roles.manage'),
+  () => isAdministrator.value || userPermissions.value.includes('page.roles.view'),
 )
 const loadUserPermissions = async (uid: string) => {
   try {
@@ -141,10 +141,19 @@ const loadUserPermissions = async (uid: string) => {
     // Administrator has all permissions automatically
     if (roleName.toLowerCase() === 'administrator') {
       userPermissions.value = [
+        'page.dashboard.view',
         'page.goods_received.view',
+        'page.goods_received.create',
+        'page.goods_received.edit',
+        'page.goods_received.delete',
         'page.users.view',
         'page.users.create',
-        'page.roles.manage',
+        'page.users.edit',
+        'page.users.delete',
+        'page.roles.view',
+        'page.roles.create',
+        'page.roles.edit',
+        'page.roles.delete',
       ]
       return
     }

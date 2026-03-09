@@ -76,7 +76,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Roles',
           icon: 'mdi-shield-account',
           showInSidebar: true,
-          requiredPermission: 'page.roles.manage',
+          requiredPermission: 'page.roles.view',
         },
       },
     ],

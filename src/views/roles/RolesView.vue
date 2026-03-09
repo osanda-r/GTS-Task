@@ -4,7 +4,12 @@
       <v-col cols="12">
         <div class="d-flex justify-space-between align-center mb-4">
           <h1 class="text-h4 font-weight-bold">Roles & Permissions</h1>
-          <v-btn color="primary" prepend-icon="mdi-plus" @click="openCreateDialog">
+          <v-btn 
+            color="primary" 
+            prepend-icon="mdi-plus" 
+            :disabled="!canCreate"
+            :title="!canCreate ? 'You do not have permission to create roles' : ''"
+            @click="openCreateDialog">
             Add New Role
           </v-btn>
         </div>
@@ -37,13 +42,19 @@
                     ></v-btn>
                   </template>
                   <v-list>
-                    <v-list-item @click="editRole(role)">
+                    <v-list-item 
+                      :disabled="!canEdit"
+                      :title="!canEdit ? 'You do not have permission to edit roles' : ''"
+                      @click="editRole(role)">
                       <template v-slot:prepend>
                         <v-icon>mdi-pencil</v-icon>
                       </template>
                       <v-list-item-title>Edit</v-list-item-title>
                     </v-list-item>
-                    <v-list-item @click="deleteRole(role)">
+                    <v-list-item 
+                      :disabled="!canDelete"
+                      :title="!canDelete ? 'You do not have permission to delete roles' : ''"
+                      @click="deleteRole(role)">
                       <template v-slot:prepend>
                         <v-icon>mdi-delete</v-icon>
                       </template>
@@ -131,11 +142,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -164,20 +176,82 @@ const snackbar = ref({
   color: 'success',
 })
 
+const userPermissions = ref<string[]>([])
+const userRole = ref<string>('')
+
 const roleForm = ref({
   name: '',
   permissions: [] as string[],
 })
 
 const permissionOptions = [
+  // Dashboard
   'page.dashboard.view',
+  
+  // Goods Received - CRUD operations
   'page.goods_received.view',
+  'page.goods_received.create',
+  'page.goods_received.edit',
+  'page.goods_received.delete',
+  
+  // Users - CRUD operations
   'page.users.view',
   'page.users.create',
-  'page.roles.manage',
+  'page.users.edit',
+  'page.users.delete',
+  
+  // Roles - Management operations
+  'page.roles.view',
+  'page.roles.create',
+  'page.roles.edit',
+  'page.roles.delete',
 ]
 
+// Permission checks
+const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
+const canCreate = computed(() => isAdministrator.value || userPermissions.value.includes('page.roles.create'))
+const canEdit = computed(() => isAdministrator.value || userPermissions.value.includes('page.roles.edit'))
+const canDelete = computed(() => isAdministrator.value || userPermissions.value.includes('page.roles.delete'))
+
 const normalizeRoleKey = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '_')
+
+const loadUserPermissions = async () => {
+  try {
+    if (!auth.currentUser) return
+
+    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
+    if (!userDoc.exists()) {
+      userPermissions.value = []
+      return
+    }
+
+    const roleName = String(userDoc.data().role ?? '').trim()
+    userRole.value = roleName
+
+    if (roleName.toLowerCase() === 'administrator') {
+      userPermissions.value = [
+        'page.roles.view',
+        'page.roles.create',
+        'page.roles.edit',
+        'page.roles.delete',
+      ]
+      return
+    }
+
+    const roleSnapshot = await getDocs(
+      query(collection(db, 'roles'), where('name', '==', roleName))
+    )
+    const roleDoc = roleSnapshot.docs[0]
+    const permissions = Array.isArray(roleDoc?.data().permissions)
+      ? roleDoc.data().permissions.map((p) => String(p))
+      : []
+
+    userPermissions.value = permissions
+  } catch (error) {
+    console.error('Failed to load permissions:', error)
+    userPermissions.value = []
+  }
+}
 
 const notify = (text: string, color: 'success' | 'error' | 'warning' | 'info') => {
   snackbar.value = { show: true, text, color }
@@ -251,6 +325,16 @@ const roleNameExists = async (name: string, excludeId?: string) => {
 }
 
 const saveRole = async () => {
+  // Check permissions
+  if (editingRoleId.value && !canEdit.value) {
+    notify('You do not have permission to edit roles.', 'error')
+    return
+  }
+  if (!editingRoleId.value && !canCreate.value) {
+    notify('You do not have permission to create roles.', 'error')
+    return
+  }
+
   const name = roleForm.value.name.trim()
   if (!name) return
 
@@ -320,6 +404,11 @@ const saveRole = async () => {
 }
 
 const deleteRole = async (role: Role) => {
+  if (!canDelete.value) {
+    notify('You do not have permission to delete roles.', 'error')
+    return
+  }
+
   if (role.userCount > 0) {
     notify('Cannot delete role that is assigned to users.', 'warning')
     return
@@ -336,6 +425,7 @@ const deleteRole = async (role: Role) => {
 }
 
 onMounted(() => {
+  loadUserPermissions()
   loadRoles()
 })
 </script>
