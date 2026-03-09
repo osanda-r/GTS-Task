@@ -47,8 +47,21 @@
                     variant="outlined"
                     color="primary"
                     density="comfortable"
+                    :loading="isRolesLoading"
+                    no-data-text="No roles found. Add a custom role."
                     required
                   ></v-select>
+                  <div class="d-flex justify-end mt-2">
+                    <v-btn
+                      size="small"
+                      variant="text"
+                      color="primary"
+                      prepend-icon="mdi-plus"
+                      @click="roleDialog = true"
+                    >
+                      Add Custom Role
+                    </v-btn>
+                  </div>
                 </v-col>
 
                 <v-col cols="12" md="6">
@@ -123,14 +136,51 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <v-dialog v-model="roleDialog" max-width="500">
+      <v-card>
+        <v-card-title class="text-h6">Add Custom Role</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="newRoleName"
+            label="Role Name"
+            prepend-inner-icon="mdi-shield-account"
+            variant="outlined"
+            density="comfortable"
+            :rules="newRoleNameRules"
+            autofocus
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="closeRoleDialog">Cancel</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="isSavingRole"
+            @click="addCustomRole"
+          >
+            Save Role
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+} from 'firebase/firestore'
 import { auth, db } from '@/plugins/firebase'
 import inputValidator from '@/helpers/utils/inputValidator'
 
@@ -155,8 +205,12 @@ const showConfirmPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const isRolesLoading = ref(false)
+const roleDialog = ref(false)
+const newRoleName = ref('')
+const isSavingRole = ref(false)
 
-const roleOptions = ['Administrator', 'Manager', 'Warehouse Staff', 'User', 'Auditor']
+const roleOptions = ref<string[]>([])
 const statusOptions = ['Active', 'Inactive']
 
 const nameRules = [
@@ -171,6 +225,7 @@ const emailRules = [
 
 const roleRules = [(v: string) => !!v || 'Role is required']
 const statusRules = [(v: string) => !!v || 'Status is required']
+const newRoleNameRules = [(v: string) => !!v?.trim() || 'Role name is required']
 
 const passwordRules = inputValidator('Password').required().minChar(6).getRules()
 
@@ -189,6 +244,69 @@ const toggleConfirmPasswordVisibility = () => {
 
 const goBack = () => {
   router.push({ name: 'Users' })
+}
+
+const normalizeRoleKey = (value: string) => {
+  return value.trim().toLowerCase().replace(/\s+/g, '_')
+}
+
+const loadRoles = async () => {
+  isRolesLoading.value = true
+  try {
+    const rolesCollection = collection(db, 'roles')
+    const snapshot = await getDocs(rolesCollection)
+    const names = snapshot.docs
+      .map((row) => String(row.data().name ?? '').trim())
+      .filter((name) => Boolean(name))
+      .sort((a, b) => a.localeCompare(b))
+
+    roleOptions.value = names
+  } catch (error) {
+    console.error('Failed to load roles:', error)
+  } finally {
+    isRolesLoading.value = false
+  }
+}
+
+const closeRoleDialog = () => {
+  roleDialog.value = false
+  newRoleName.value = ''
+}
+
+const addCustomRole = async () => {
+  const roleName = newRoleName.value.trim()
+  if (!roleName) {
+    return
+  }
+
+  isSavingRole.value = true
+  try {
+    const rolesCollection = collection(db, 'roles')
+    const duplicateQuery = query(rolesCollection, where('name', '==', roleName))
+    const duplicateSnapshot = await getDocs(duplicateQuery)
+
+    if (!duplicateSnapshot.empty) {
+      errorMessage.value = 'Role already exists.'
+      return
+    }
+
+    const roleKey = normalizeRoleKey(roleName)
+    await setDoc(doc(db, 'roles', roleKey), {
+      name: roleName,
+      createdAt: serverTimestamp(),
+      createdBy: auth.currentUser?.uid || 'admin',
+    })
+
+    await loadRoles()
+    form.value.role = roleName
+    successMessage.value = `Role "${roleName}" added.`
+    closeRoleDialog()
+  } catch (error) {
+    console.error('Failed to add role:', error)
+    errorMessage.value = 'Failed to add role. Please try again.'
+  } finally {
+    isSavingRole.value = false
+  }
 }
 
 const extractAuthCode = (error: string): string => {
@@ -268,6 +386,10 @@ const handleAddUser = async () => {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  loadRoles()
+})
 </script>
 
 <style scoped>
