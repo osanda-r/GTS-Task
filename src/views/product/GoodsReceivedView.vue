@@ -186,6 +186,7 @@ import {
 import { signInAnonymously } from 'firebase/auth'
 import type { FirebaseError } from 'firebase/app'
 import { auth, db } from '@/plugins/firebase'
+import { getNextGRN } from '@/helpers/utils/grnUtils'
 
 type GoodsRecord = {
   id: string
@@ -390,11 +391,6 @@ const clearForm = () => {
   touched.value.grossWeight = false
 }
 
-const makeGrn = () => {
-  const now = Date.now().toString().slice(-5)
-  return `GRN-${now}`
-}
-
 const saveRecord = async () => {
   touched.value.grossWeight = true
   if (showWeightError.value || isSaving.value) return
@@ -411,7 +407,7 @@ const saveRecord = async () => {
     const hasSession = await ensureFirebaseSession()
     if (!hasSession) return
 
-    const grn = makeGrn()
+    const grn = await getNextGRN()
     const actualWeight = Math.max(grossWeight - moisture, 0)
     const docRef = await addDoc(goodsCollection, {
       grn,
