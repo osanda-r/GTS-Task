@@ -3,15 +3,12 @@
     <v-row align="center" justify="center">
       <v-col cols="12" sm="8" md="5" lg="4" xl="3">
         <v-card class="login-card elevation-12" rounded="lg">
-          <div class="text-center pt-8 pb-4">
-            <v-avatar color="primary" size="80" class="mb-4">
-              <v-icon size="40" color="white">mdi-account-circle</v-icon>
-            </v-avatar>
-            <h2 class="text-h4 font-weight-bold mb-2">Welcome Back</h2>
-            <p class="text-grey">Sign in to continue</p>
+          <div class="text-center pt-10 pb-6">
+            <h2 class="text-h4 font-weight-bold mb-3">Welcome Back</h2>
+            <p class="text-grey subtitle-text">Login to continue</p>
           </div>
 
-          <v-card-text class="px-8 pb-0">
+          <v-card-text class="px-8 pb-8">
             <v-form ref="form" v-model="valid" @submit.prevent="handleLogin">
               <v-text-field
                 v-model="email"
@@ -20,7 +17,7 @@
                 prepend-inner-icon="mdi-email-outline"
                 variant="outlined"
                 color="primary"
-                class="mb-3"
+                class="mb-5"
                 density="comfortable"
                 required
               ></v-text-field>
@@ -35,20 +32,10 @@
                 @click:append-inner="togglePasswordVisibility"
                 variant="outlined"
                 color="primary"
+                class="mb-6"
                 density="comfortable"
                 required
               ></v-text-field>
-
-              <div class="d-flex justify-space-between align-center mb-4">
-                <v-checkbox
-                  v-model="rememberMe"
-                  label="Remember me"
-                  color="primary"
-                  density="compact"
-                  hide-details
-                ></v-checkbox>
-                <a href="#" class="text-primary text-decoration-none"> Forgot password? </a>
-              </div>
 
               <v-btn
                 type="submit"
@@ -57,13 +44,13 @@
                 block
                 size="large"
                 color="primary"
-                class="mb-4 text-none"
+                class="mb-5 text-none sign-in-btn"
                 rounded="lg"
               >
-                Sign In
+                LOGIN
               </v-btn>
 
-              <v-alert v-if="errorMessage" type="error" class="mb-4">{{ errorMessage }}</v-alert>
+              <v-alert v-if="errorMessage" type="error" class="mt-2">{{ errorMessage }}</v-alert>
             </v-form>
           </v-card-text>
         </v-card>
@@ -83,7 +70,6 @@ const valid = ref(false)
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
-const rememberMe = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
 
@@ -160,21 +146,41 @@ const handleFirebaseError = (error: string) => {
 }
 
 .login-card {
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95) !important;
+ 
+ 
 }
 
 .text-grey {
   color: #757575;
 }
 
+.subtitle-text {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.sign-in-btn {
+  padding: 14px 0 !important;
+  height: 50px !important;
+  font-size: 1rem;
+}
+
 :deep(.v-field--variant-outlined) {
   border-radius: 12px;
 }
 
+:deep(.v-field__input) {
+  padding: 14px 16px;
+  min-height: 52px;
+}
+
 :deep(.v-btn) {
   text-transform: none;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   font-weight: 600;
+}
+
+:deep(.v-alert) {
+  border-radius: 12px;
 }
 </style>
