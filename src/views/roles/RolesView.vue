@@ -4,12 +4,13 @@
       <v-col cols="12">
         <div class="d-flex justify-space-between align-center mb-4">
           <h1 class="text-h4 font-weight-bold">Roles & Permissions</h1>
-          <v-btn 
-            color="primary" 
-            prepend-icon="mdi-plus" 
+          <v-btn
+            color="primary"
+            prepend-icon="mdi-plus"
             :disabled="!canCreate"
             :title="!canCreate ? 'You do not have permission to create roles' : ''"
-            @click="openCreateDialog">
+            @click="openCreateDialog"
+          >
             Add New Role
           </v-btn>
         </div>
@@ -42,19 +43,21 @@
                     ></v-btn>
                   </template>
                   <v-list>
-                    <v-list-item 
+                    <v-list-item
                       :disabled="!canEdit"
                       :title="!canEdit ? 'You do not have permission to edit roles' : ''"
-                      @click="editRole(role)">
+                      @click="editRole(role)"
+                    >
                       <template v-slot:prepend>
                         <v-icon>mdi-pencil</v-icon>
                       </template>
                       <v-list-item-title>Edit</v-list-item-title>
                     </v-list-item>
-                    <v-list-item 
+                    <v-list-item
                       :disabled="!canDelete"
                       :title="!canDelete ? 'You do not have permission to delete roles' : ''"
-                      @click="deleteRole(role)">
+                      @click="deleteRole(role)"
+                    >
                       <template v-slot:prepend>
                         <v-icon>mdi-delete</v-icon>
                       </template>
@@ -187,19 +190,19 @@ const roleForm = ref({
 const permissionOptions = [
   // Dashboard
   'page.dashboard.view',
-  
+
   // Goods Received - CRUD operations
   'page.goods_received.view',
   'page.goods_received.create',
   'page.goods_received.edit',
   'page.goods_received.delete',
-  
+
   // Users - CRUD operations
   'page.users.view',
   'page.users.create',
   'page.users.edit',
   'page.users.delete',
-  
+
   // Roles - Management operations
   'page.roles.view',
   'page.roles.create',
@@ -209,9 +212,15 @@ const permissionOptions = [
 
 // Permission checks
 const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
-const canCreate = computed(() => isAdministrator.value || userPermissions.value.includes('page.roles.create'))
-const canEdit = computed(() => isAdministrator.value || userPermissions.value.includes('page.roles.edit'))
-const canDelete = computed(() => isAdministrator.value || userPermissions.value.includes('page.roles.delete'))
+const canCreate = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.roles.create'),
+)
+const canEdit = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.roles.edit'),
+)
+const canDelete = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.roles.delete'),
+)
 
 const normalizeRoleKey = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '_')
 
@@ -239,7 +248,7 @@ const loadUserPermissions = async () => {
     }
 
     const roleSnapshot = await getDocs(
-      query(collection(db, 'roles'), where('name', '==', roleName))
+      query(collection(db, 'roles'), where('name', '==', roleName)),
     )
     const roleDoc = roleSnapshot.docs[0]
     const permissions = Array.isArray(roleDoc?.data().permissions)

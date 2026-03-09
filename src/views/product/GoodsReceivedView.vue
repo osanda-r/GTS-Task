@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="goods-page">
-    <v-card class="form-card mb-6" elevation="2" rounded="lg">
+    <v-card v-if="canCreate" class="form-card mb-6" elevation="2" rounded="lg">
       <div class="form-title-bar px-6 py-4 d-flex align-center">
         <v-icon icon="mdi-truck-delivery-outline" class="mr-3" size="28"></v-icon>
         <h2 class="text-h5 font-weight-medium">Goods Received</h2>
@@ -90,18 +90,12 @@
           <v-btn class="mr-3" color="grey-lighten-4" variant="elevated" @click="clearForm">
             CLEAR
           </v-btn>
-          <v-btn 
-            color="success" 
-            variant="flat" 
-            :loading="isSaving" 
-            :disabled="!canCreate"
-            :title="!canCreate ? 'You do not have permission to create records' : ''"
-            @click="saveRecord">SAVE</v-btn>
+          <v-btn color="success" variant="flat" :loading="isSaving" @click="saveRecord">SAVE</v-btn>
         </div>
       </v-card-text>
     </v-card>
 
-    <v-card class="table-card" elevation="2" rounded="lg">
+    <v-card v-if="canView" class="table-card" elevation="2" rounded="lg">
       <v-card-text class="px-0 py-0">
         <div class="table-head px-6 py-4 d-flex flex-wrap align-center">
           <div class="d-flex align-center mr-6 mb-3 mb-md-0">
@@ -123,7 +117,7 @@
             class="search-input mr-4 mb-3 mb-md-0"
           ></v-text-field>
 
-          <div class="d-flex align-center gap-2 flex-wrap">
+          <div v-if="!hasOnlyViewPermission" class="d-flex align-center gap-2 flex-wrap">
             <v-btn
               color="info"
               variant="tonal"
@@ -152,16 +146,30 @@
           hide-default-footer
           no-data-text="No records found"
         >
-          <template v-slot:[`item.actions`]="{ item }">
+          <template v-if="canShowActions" v-slot:[`item.actions`]="{ item }">
             <div class="d-flex flex-column align-center py-2">
-              <v-btn icon="mdi-eye" size="small" variant="text" color="grey-darken-3"></v-btn>
               <v-btn
+                v-if="canView && !hasOnlyViewPermission"
+                icon="mdi-eye"
+                size="small"
+                variant="text"
+                color="grey-darken-3"
+                @click="openViewDialog(item)"
+              ></v-btn>
+              <v-btn
+                v-if="canEdit"
+                icon="mdi-pencil"
+                size="small"
+                variant="text"
+                color="info"
+                @click="openEditDialog(item)"
+              ></v-btn>
+              <v-btn
+                v-if="canDelete"
                 icon="mdi-delete"
                 size="small"
                 variant="text"
                 color="error"
-                :disabled="!canDelete"
-                :title="!canDelete ? 'You do not have permission to delete records' : ''"
                 @click="deleteRecord(item.id)"
               ></v-btn>
             </div>
@@ -170,7 +178,137 @@
       </v-card-text>
     </v-card>
 
-    <v-btn class="floating-menu" color="success" icon="mdi-menu" size="56" elevation="8"></v-btn>
+    <v-card v-else class="table-card" elevation="2" rounded="lg">
+      <v-card-text class="py-8 text-center text-medium-emphasis">
+        You do not have permission to view goods received records.
+      </v-card-text>
+    </v-card>
+
+    <v-dialog v-model="isViewDialogOpen" max-width="650">
+      <v-card>
+        <v-card-title class="text-h6">Goods Received Details</v-card-title>
+        <v-card-text v-if="selectedRecord" class="pt-4">
+          <v-row dense>
+            <v-col cols="6"><strong>GRN:</strong> {{ selectedRecord.grn }}</v-col>
+            <v-col cols="6"><strong>Color:</strong> {{ selectedRecord.color }}</v-col>
+            <v-col cols="6"><strong>Type:</strong> {{ selectedRecord.type }}</v-col>
+            <v-col cols="6"
+              ><strong>Gross Weight:</strong> {{ selectedRecord.grossWeight }} Kg</v-col
+            >
+            <v-col cols="6"><strong>Moisture:</strong> {{ selectedRecord.moisture }} %</v-col>
+            <v-col cols="6"
+              ><strong>Actual Weight:</strong> {{ selectedRecord.actualWeight }} Kg</v-col
+            >
+            <v-col cols="6"><strong>Supplier:</strong> {{ selectedRecord.supplier || '-' }}</v-col>
+            <v-col cols="6"
+              ><strong>Created At:</strong> {{ selectedRecord.createdAtDisplay }}</v-col
+            >
+            <v-col cols="12"><strong>Remark:</strong> {{ selectedRecord.remark || '-' }}</v-col>
+          </v-row>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" variant="text" @click="isViewDialogOpen = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="isEditDialogOpen" max-width="760">
+      <v-card>
+        <v-card-title class="text-h6">Edit Goods Received</v-card-title>
+        <v-card-text class="pt-4">
+          <v-row dense>
+            <v-col cols="12" md="6">
+              <label class="field-label">Color</label>
+              <v-text-field
+                v-model="editForm.color"
+                placeholder="Enter Color"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                rounded="lg"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" md="6">
+              <label class="field-label">Type</label>
+              <v-text-field
+                v-model="editForm.type"
+                placeholder="Enter Type"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                rounded="lg"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" md="6">
+              <label class="field-label">Gross Weight (Kg)</label>
+              <v-text-field
+                v-model="editForm.grossWeight"
+                placeholder="Enter Gross Weight"
+                variant="outlined"
+                density="comfortable"
+                :error="showEditWeightError"
+                hide-details="auto"
+                rounded="lg"
+                @blur="editTouched.grossWeight = true"
+              ></v-text-field>
+              <div v-if="showEditWeightError" class="required-text mt-1">
+                This field is required
+              </div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <label class="field-label">Moisture (%)</label>
+              <v-text-field
+                v-model="editForm.moisture"
+                placeholder="Enter Moisture %"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                rounded="lg"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" md="6">
+              <label class="field-label">Supplier (Optional)</label>
+              <v-text-field
+                v-model="editForm.supplier"
+                placeholder="Enter Supplier"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                rounded="lg"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" md="6">
+              <label class="field-label">Remark</label>
+              <v-textarea
+                v-model="editForm.remark"
+                placeholder="Enter Remark"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                rows="1"
+                auto-grow
+                rounded="lg"
+              ></v-textarea>
+            </v-col>
+          </v-row>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="isEditDialogOpen = false">Cancel</v-btn>
+          <v-btn color="success" :loading="isUpdating" @click="updateRecord">Update</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-btn
+      v-if="!hasOnlyViewPermission"
+      class="floating-menu"
+      color="success"
+      icon="mdi-menu"
+      size="56"
+      elevation="8"
+    ></v-btn>
 
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
       {{ snackbar.text }}
@@ -185,12 +323,13 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
   getDoc,
+  getDocs,
   orderBy,
   query,
   serverTimestamp,
   Timestamp,
+  updateDoc,
   where,
 } from 'firebase/firestore'
 import { signInAnonymously } from 'firebase/auth'
@@ -217,14 +356,19 @@ const goodsCollection = collection(db, 'goodsReceived')
 const search = ref('')
 const isLoading = ref(false)
 const isSaving = ref(false)
+const isUpdating = ref(false)
 const authWarningShown = ref(false)
 const userPermissions = ref<string[]>([])
 const userRole = ref<string>('')
+const isViewDialogOpen = ref(false)
+const isEditDialogOpen = ref(false)
+const selectedRecord = ref<GoodsRecord | null>(null)
 const snackbar = ref({
   show: false,
   text: '',
   color: 'success',
 })
+
 const form = ref({
   color: '',
   type: '',
@@ -238,26 +382,65 @@ const touched = ref({
   grossWeight: false,
 })
 
+const editForm = ref({
+  id: '',
+  color: '',
+  type: '',
+  grossWeight: '',
+  moisture: '',
+  supplier: '',
+  remark: '',
+})
+
+const editTouched = ref({
+  grossWeight: false,
+})
+
 const showWeightError = computed(() => touched.value.grossWeight && !form.value.grossWeight.trim())
+const showEditWeightError = computed(
+  () => editTouched.value.grossWeight && !editForm.value.grossWeight.trim(),
+)
 
 // Permission checks
 const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
-const canCreate = computed(() => isAdministrator.value || userPermissions.value.includes('page.goods_received.create'))
-const canEdit = computed(() => isAdministrator.value || userPermissions.value.includes('page.goods_received.edit'))
-const canDelete = computed(() => isAdministrator.value || userPermissions.value.includes('page.goods_received.delete'))
+const canView = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.goods_received.view'),
+)
+const canCreate = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.goods_received.create'),
+)
+const canEdit = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.goods_received.edit'),
+)
+const canDelete = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.goods_received.delete'),
+)
+const hasOnlyViewPermission = computed(
+  () => canView.value && !canCreate.value && !canEdit.value && !canDelete.value,
+)
+const canShowActions = computed(
+  () => canEdit.value || canDelete.value || (canView.value && !hasOnlyViewPermission.value),
+)
 
-const headers = [
-  { title: 'GRN', key: 'grn' },
-  { title: 'Color', key: 'color' },
-  { title: 'Type', key: 'type' },
-  { title: 'Gross Weight (Kg)', key: 'grossWeight' },
-  { title: 'Moisture (%)', key: 'moisture' },
-  { title: 'Actual Weight (Kg)', key: 'actualWeight' },
-  { title: 'Supplier', key: 'supplier' },
-  { title: 'Remark', key: 'remark' },
-  { title: 'Created At', key: 'createdAtDisplay' },
-  { title: 'Actions', key: 'actions', sortable: false },
-]
+const headers = computed(() => {
+  const baseHeaders: Array<{ title: string; key: string; sortable?: boolean }> = [
+    { title: 'GRN', key: 'grn' },
+    { title: 'Color', key: 'color' },
+    { title: 'Type', key: 'type' },
+    { title: 'Gross Weight (Kg)', key: 'grossWeight' },
+    { title: 'Moisture (%)', key: 'moisture' },
+    { title: 'Actual Weight (Kg)', key: 'actualWeight' },
+    { title: 'Supplier', key: 'supplier' },
+    { title: 'Remark', key: 'remark' },
+    { title: 'Created At', key: 'createdAtDisplay' },
+  ]
+
+  if (canShowActions.value) {
+    baseHeaders.push({ title: 'Actions', key: 'actions', sortable: false })
+  }
+
+  return baseHeaders
+})
 
 const goods = ref<GoodsRecord[]>([])
 
@@ -320,7 +503,7 @@ const getFirebaseErrorMessage = (error: unknown) => {
       return 'Firebase Auth is not configured for this project. Configure Auth or use Firestore rules that do not require auth.'
     case 'auth/admin-restricted-operation':
     case 'auth/operation-not-allowed':
-      return 'Enable Anonymous sign-in in Firebase Console: Authentication → Sign-in method → Anonymous.'
+      return 'Enable Anonymous sign-in in Firebase Console: Authentication -> Sign-in method -> Anonymous.'
     case 'permission-denied':
       return 'Permission denied. Update Firestore rules or sign in with an allowed user.'
     case 'unauthenticated':
@@ -390,11 +573,11 @@ const loadUserPermissions = async () => {
     }
 
     const roleSnapshot = await getDocs(
-      query(collection(db, 'roles'), where('name', '==', roleName))
+      query(collection(db, 'roles'), where('name', '==', roleName)),
     )
     const roleDoc = roleSnapshot.docs[0]
     const permissions = Array.isArray(roleDoc?.data().permissions)
-      ? roleDoc.data().permissions.map((p) => String(p))
+      ? roleDoc.data().permissions.map((p: unknown) => String(p))
       : []
 
     userPermissions.value = permissions
@@ -428,11 +611,11 @@ const loadGoods = async () => {
 }
 
 const filteredGoods = computed(() => {
-  const query = search.value.trim().toLowerCase()
-  if (!query) return goods.value
+  const queryTerm = search.value.trim().toLowerCase()
+  if (!queryTerm) return goods.value
 
   return goods.value.filter((row) => {
-    return Object.values(row).some((value) => String(value).toLowerCase().includes(query))
+    return Object.values(row).some((value) => String(value).toLowerCase().includes(queryTerm))
   })
 })
 
@@ -446,6 +629,91 @@ const clearForm = () => {
     remark: '',
   }
   touched.value.grossWeight = false
+}
+
+const openViewDialog = (record: GoodsRecord) => {
+  if (!canView.value) {
+    showToast('You do not have permission to view records.', 'error')
+    return
+  }
+
+  selectedRecord.value = record
+  isViewDialogOpen.value = true
+}
+
+const openEditDialog = (record: GoodsRecord) => {
+  if (!canEdit.value) {
+    showToast('You do not have permission to edit records.', 'error')
+    return
+  }
+
+  editForm.value = {
+    id: record.id,
+    color: record.color,
+    type: record.type,
+    grossWeight: String(record.grossWeight),
+    moisture: String(record.moisture),
+    supplier: record.supplier,
+    remark: record.remark,
+  }
+  editTouched.value.grossWeight = false
+  isEditDialogOpen.value = true
+}
+
+const updateRecord = async () => {
+  if (!canEdit.value) {
+    showToast('You do not have permission to edit records.', 'error')
+    return
+  }
+
+  editTouched.value.grossWeight = true
+  if (showEditWeightError.value || isUpdating.value) return
+
+  const grossWeight = Number(editForm.value.grossWeight)
+  const moisture = Number(editForm.value.moisture || 0)
+  if (!Number.isFinite(grossWeight) || grossWeight <= 0) {
+    showToast('Gross weight must be greater than 0.', 'warning')
+    return
+  }
+
+  isUpdating.value = true
+  try {
+    const hasSession = await ensureFirebaseSession()
+    if (!hasSession) return
+
+    const actualWeight = Math.max(grossWeight - moisture, 0)
+    await updateDoc(doc(db, 'goodsReceived', editForm.value.id), {
+      color: editForm.value.color ?? '',
+      type: editForm.value.type ?? '',
+      grossWeight,
+      moisture,
+      actualWeight,
+      supplier: editForm.value.supplier ?? '',
+      remark: editForm.value.remark ?? '',
+    })
+
+    goods.value = goods.value.map((row) => {
+      if (row.id !== editForm.value.id) return row
+      return {
+        ...row,
+        color: editForm.value.color,
+        type: editForm.value.type,
+        grossWeight,
+        moisture,
+        actualWeight,
+        supplier: editForm.value.supplier,
+        remark: editForm.value.remark,
+      }
+    })
+
+    isEditDialogOpen.value = false
+    showToast('Record updated successfully.', 'success')
+  } catch (error) {
+    console.error('Failed to update record:', error)
+    showToast(getFirebaseErrorMessage(error), 'error')
+  } finally {
+    isUpdating.value = false
+  }
 }
 
 const saveRecord = async () => {

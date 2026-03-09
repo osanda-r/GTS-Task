@@ -165,26 +165,15 @@
 
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import router from '@/router'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from 'firebase/firestore'
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
 import { auth, db } from '@/plugins/firebase'
 import inputValidator from '@/helpers/utils/inputValidator'
 
 interface FormValidation {
   validate: () => Promise<{ valid: boolean }>
 }
-
-const router = useRouter()
 
 const formRef = ref<FormValidation | null>(null)
 const valid = ref(false)
@@ -370,45 +359,15 @@ const handleAddUser = async () => {
 
     successMessage.value = 'User created successfully!'
 
-    // Check if user has permission to view Users page, otherwise redirect to Dashboard
-    setTimeout(async () => {
-      try {
-        if (auth.currentUser) {
-          const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
-          if (userDoc.exists()) {
-            const userRole = String(userDoc.data().role ?? '').trim()
-
-            // Administrator has all permissions
-            if (userRole.toLowerCase() === 'administrator') {
-              router.push({ name: 'Users' })
-              return
-            }
-
-            // Check if user has page.users.view permission
-            const roleSnapshot = await getDocs(
-              query(collection(db, 'roles'), where('name', '==', userRole)),
-            )
-            const roleDoc = roleSnapshot.docs[0]
-            const permissions = Array.isArray(roleDoc?.data().permissions)
-              ? roleDoc.data().permissions
-              : []
-
-            if (permissions.includes('page.users.view')) {
-              router.push({ name: 'Users' })
-            } else {
-              router.push({ name: 'Dashboard' })
-            }
-          } else {
-            router.push({ name: 'Dashboard' })
-          }
-        } else {
-          router.push({ name: 'Dashboard' })
-        }
-      } catch (error) {
-        console.error('Error checking permissions:', error)
-        router.push({ name: 'Dashboard' })
-      }
-    }, 1500)
+    form.value = {
+      fullName: '',
+      email: '',
+      role: '',
+      status: 'Active',
+      password: '',
+      confirmPassword: '',
+    }
+    valid.value = false
   } catch (error: unknown) {
     const errorText = error instanceof Error ? error.message : 'Unknown error'
     errorMessage.value = toUserMessage(errorText)
