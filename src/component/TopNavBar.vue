@@ -4,14 +4,15 @@
     <v-app-bar-nav-icon @click="toggleDrawer"></v-app-bar-nav-icon>
 
     <div class="d-flex align-center gap-2 ml-2">
-      <v-btn variant="text" color="grey-darken-2" class="text-none">
+      <v-btn variant="text" color="grey-darken-2" class="text-none" @click="goHome">
         <v-icon start>mdi-home-outline</v-icon>
         Home
       </v-btn>
 
-      <v-icon size="small" color="grey">mdi-chevron-right</v-icon>
-
-      <span class="text-grey-darken-1">Dashboard</span>
+      <template v-if="currentPageTitle">
+        <v-icon size="small" color="grey">mdi-chevron-right</v-icon>
+        <span class="text-grey-darken-1">{{ currentPageTitle }}</span>
+      </template>
     </div>
 
     <v-spacer></v-spacer>
@@ -69,11 +70,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTheme } from 'vuetify'
+import { useRoute, useRouter } from 'vue-router'
 import useAuth from '@/composables/useAuth'
 import { auth } from '@/plugins/firebase'
 
 const theme = useTheme()
+const route = useRoute()
+const router = useRouter()
 const { logout: authLogout } = useAuth()
+
+// Get current page title from route meta
+const currentPageTitle = computed(() => {
+  return (route.meta.title as string) || (route.name as string) || ''
+})
 
 // get user name and initials for avatar
 const userName = computed(() => {
@@ -99,6 +108,10 @@ const emit = defineEmits(['toggle-drawer'])
 
 const toggleDrawer = () => {
   emit('toggle-drawer')
+}
+
+const goHome = () => {
+  router.push({ name: 'Dashboard' })
 }
 
 const toggleTheme = () => {
