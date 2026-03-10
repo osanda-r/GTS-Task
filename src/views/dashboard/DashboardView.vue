@@ -1,14 +1,14 @@
 <template>
   <v-container fluid class="dashboard-container">
-    <div class="d-flex align-center justify-space-between mb-6">
-      <div>
-        <h1 class="text-h4 font-weight-bold">Dashboard</h1>
-        <p class="text-body2 text-grey mt-1">
-          Welcome back, {{ userName }}! Here's what's happening today.
-        </p>
-      </div>
-      <v-btn color="success" prepend-icon="mdi-plus" size="large">ADD PRODUCT</v-btn>
-    </div>
+    <PageHeader
+      title="Dashboard"
+      :subtitle="`Welcome back, ${userName}! Here's what's happening today.`"
+      container-class="mb-6"
+    >
+      <template #actions>
+        <v-btn color="success" prepend-icon="mdi-plus" size="large">ADD PRODUCT</v-btn>
+      </template>
+    </PageHeader>
 
     <!-- Metrics Cards -->
     <v-row class="mb-6">
@@ -112,29 +112,7 @@
           <v-card-text class="pa-6">
             <div class="d-flex justify-space-between align-center mb-4">
               <h3 class="text-h6 font-weight-bold">Goods Received Overview</h3>
-              <div class="d-flex gap-2">
-                <v-btn
-                  size="small"
-                  :variant="chartPeriod === 'WEEK' ? 'tonal' : 'text'"
-                  @click="chartPeriod = 'WEEK'"
-                >
-                  WEEK
-                </v-btn>
-                <v-btn
-                  size="small"
-                  :variant="chartPeriod === 'MONTH' ? 'tonal' : 'text'"
-                  @click="chartPeriod = 'MONTH'"
-                >
-                  MONTH
-                </v-btn>
-                <v-btn
-                  size="small"
-                  :variant="chartPeriod === 'YEAR' ? 'tonal' : 'text'"
-                  @click="chartPeriod = 'YEAR'"
-                >
-                  YEAR
-                </v-btn>
-              </div>
+              <PeriodSelector v-model="chartPeriod" />
             </div>
             <canvas ref="goodsChart" height="80"></canvas>
           </v-card-text>
@@ -170,18 +148,13 @@
         <v-card elevation="0" rounded="lg">
           <v-card-text class="pa-6">
             <h3 class="text-h6 font-weight-bold mb-4">Goods Received Statistics</h3>
-            <div class="stat-item d-flex justify-space-between py-2 border-bottom">
-              <span class="text-body2">Total Shipments</span>
-              <span class="font-weight-bold">{{ goodsStats.totalShipments }}</span>
-            </div>
-            <div class="stat-item d-flex justify-space-between py-2 border-bottom">
-              <span class="text-body2">Total Weight (Kg)</span>
-              <span class="font-weight-bold">{{ goodsStats.totalWeight.toLocaleString() }}</span>
-            </div>
-            <div class="stat-item d-flex justify-space-between py-2">
-              <span class="text-body2">Average Supplier</span>
-              <span class="font-weight-bold">{{ goodsStats.avgSuppliers }}</span>
-            </div>
+            <StatRow label="Total Shipments" :value="goodsStats.totalShipments" with-border />
+            <StatRow
+              label="Total Weight (Kg)"
+              :value="goodsStats.totalWeight.toLocaleString()"
+              with-border
+            />
+            <StatRow label="Average Supplier" :value="goodsStats.avgSuppliers" />
           </v-card-text>
         </v-card>
       </v-col>
@@ -190,18 +163,18 @@
         <v-card elevation="0" rounded="lg">
           <v-card-text class="pa-6">
             <h3 class="text-h6 font-weight-bold mb-4">User Activity</h3>
-            <div class="stat-item d-flex justify-space-between py-2 border-bottom">
-              <span class="text-body2">Total Users</span>
-              <span class="font-weight-bold">{{ userStats.totalUsers }}</span>
-            </div>
-            <div class="stat-item d-flex justify-space-between py-2 border-bottom">
-              <span class="text-body2">Active Users</span>
-              <span class="font-weight-bold text-success">{{ userStats.activeUsers }}</span>
-            </div>
-            <div class="stat-item d-flex justify-space-between py-2">
-              <span class="text-body2">Inactive Users</span>
-              <span class="font-weight-bold text-error">{{ userStats.inactiveUsers }}</span>
-            </div>
+            <StatRow label="Total Users" :value="userStats.totalUsers" with-border />
+            <StatRow
+              label="Active Users"
+              :value="userStats.activeUsers"
+              value-class="text-success"
+              with-border
+            />
+            <StatRow
+              label="Inactive Users"
+              :value="userStats.inactiveUsers"
+              value-class="text-error"
+            />
           </v-card-text>
         </v-card>
       </v-col>
@@ -213,13 +186,16 @@
 import { ref, onMounted, watch } from 'vue'
 import { getDoc, doc, getDocs, collection } from 'firebase/firestore'
 import { db, auth } from '@/plugins/firebase'
+import PageHeader from '@/component/common/PageHeader.vue'
+import PeriodSelector from '@/component/common/PeriodSelector.vue'
+import StatRow from '@/component/common/StatRow.vue'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ChartLib = (window as any).Chart
 
 const userName = ref('John')
 const goodsChart = ref<HTMLCanvasElement | null>(null)
-const chartPeriod = ref('MONTH')
+const chartPeriod = ref<'WEEK' | 'MONTH' | 'YEAR'>('MONTH')
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let chartInstance: any = null
 

@@ -2,18 +2,19 @@
   <v-container fluid>
     <v-row>
       <v-col cols="12">
-        <div class="d-flex justify-space-between align-center mb-4">
-          <h1 class="text-h4 font-weight-bold">Roles & Permissions</h1>
-          <v-btn
-            color="primary"
-            prepend-icon="mdi-plus"
-            :disabled="!canCreate"
-            :title="!canCreate ? 'You do not have permission to create roles' : ''"
-            @click="openCreateDialog"
-          >
-            Add New Role
-          </v-btn>
-        </div>
+        <PageHeader title="Roles & Permissions">
+          <template #actions>
+            <v-btn
+              color="primary"
+              prepend-icon="mdi-plus"
+              :disabled="!canCreate"
+              :title="!canCreate ? 'You do not have permission to create roles' : ''"
+              @click="openCreateDialog"
+            >
+              Add New Role
+            </v-btn>
+          </template>
+        </PageHeader>
 
         <v-row>
           <v-col v-if="isLoading" cols="12">
@@ -146,6 +147,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import PageHeader from '@/component/common/PageHeader.vue'
 import {
   collection,
   deleteDoc,
@@ -252,7 +254,7 @@ const loadUserPermissions = async () => {
     )
     const roleDoc = roleSnapshot.docs[0]
     const permissions = Array.isArray(roleDoc?.data().permissions)
-      ? roleDoc.data().permissions.map((p) => String(p))
+      ? roleDoc.data().permissions.map((p: unknown) => String(p))
       : []
 
     userPermissions.value = permissions

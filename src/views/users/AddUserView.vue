@@ -2,10 +2,7 @@
   <v-container fluid>
     <v-row>
       <v-col cols="12">
-        <div class="d-flex align-center mb-4">
-          <v-btn icon="mdi-arrow-left" variant="text" @click="goBack"></v-btn>
-          <h1 class="text-h4 font-weight-bold ml-2">Add New User</h1>
-        </div>
+        <PageHeader title="Add New User" show-back @back="goBack" />
 
         <v-card max-width="800" class="mx-auto">
           <v-card-text class="pa-6">
@@ -170,6 +167,7 @@ import { createUserWithEmailAndPassword, getAuth, signOut, updateProfile } from 
 import { deleteApp, getApps, initializeApp } from 'firebase/app'
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
 import { auth, db, firebaseApp } from '@/plugins/firebase'
+import PageHeader from '@/component/common/PageHeader.vue'
 import inputValidator from '@/helpers/utils/inputValidator'
 
 interface FormValidation {

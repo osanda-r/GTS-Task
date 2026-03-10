@@ -2,12 +2,13 @@
   <v-container fluid>
     <v-row>
       <v-col cols="12">
-        <div class="d-flex justify-space-between align-center mb-4">
-          <h1 class="text-h4 font-weight-bold">Users</h1>
-          <v-btn color="primary" prepend-icon="mdi-account-plus" @click="addNewUser">
-            Add New User
-          </v-btn>
-        </div>
+        <PageHeader title="Users">
+          <template #actions>
+            <v-btn color="primary" prepend-icon="mdi-account-plus" @click="addNewUser">
+              Add New User
+            </v-btn>
+          </template>
+        </PageHeader>
 
         <v-card>
           <v-card-title>
@@ -64,9 +65,10 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/plugins/firebase'
+import router from '@/router'
+import PageHeader from '@/component/common/PageHeader.vue'
 import type { Timestamp } from 'firebase/firestore'
 
 interface UserRecord {
@@ -80,8 +82,6 @@ interface UserRecord {
   lastLogin?: string
   createdAt?: Timestamp | string
 }
-
-const router = useRouter()
 
 const search = ref('')
 const loading = ref(false)

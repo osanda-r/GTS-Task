@@ -1,5 +1,11 @@
 <template>
   <v-container fluid class="goods-page">
+    <PageHeader
+      title="Goods Received"
+      subtitle="Manage received goods records and stock entries."
+      container-class="mb-4"
+    />
+
     <v-card v-if="canCreate" class="form-card mb-6" elevation="2" rounded="lg">
       <div class="form-title-bar px-6 py-4 d-flex align-center">
         <v-icon icon="mdi-truck-delivery-outline" class="mr-3" size="28"></v-icon>
@@ -335,6 +341,7 @@ import {
 import { signInAnonymously } from 'firebase/auth'
 import type { FirebaseError } from 'firebase/app'
 import { auth, db } from '@/plugins/firebase'
+import PageHeader from '@/component/common/PageHeader.vue'
 import { getNextGRN } from '@/helpers/utils/grnUtils'
 
 type GoodsRecord = {
@@ -815,7 +822,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .goods-page {
-  background: #eceff1;
   min-height: calc(100vh - 64px);
   padding: 22px;
 }
