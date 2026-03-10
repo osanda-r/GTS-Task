@@ -15,80 +15,43 @@
       <v-card-text class="pt-6 pb-4">
         <v-row dense>
           <v-col cols="12" md="2">
-            <label class="field-label">Color</label>
-            <v-text-field
-              v-model="form.color"
-              placeholder="Enter Color"
-              variant="outlined"
-              density="comfortable"
-              hide-details
-              rounded="lg"
-            ></v-text-field>
+            <FormField label="Color" v-model="form.color" placeholder="Enter Color" />
           </v-col>
 
           <v-col cols="12" md="2">
-            <label class="field-label">Type</label>
-            <v-text-field
-              v-model="form.type"
-              placeholder="Enter Type"
-              variant="outlined"
-              density="comfortable"
-              hide-details
-              rounded="lg"
-            ></v-text-field>
+            <FormField label="Type" v-model="form.type" placeholder="Enter Type" />
           </v-col>
 
           <v-col cols="12" md="2">
-            <label class="field-label">Gross Weight (Kg)</label>
-            <v-text-field
+            <FormField
+              label="Gross Weight (Kg)"
               v-model="form.grossWeight"
               placeholder="Enter Gross Weight"
-              variant="outlined"
-              density="comfortable"
               :error="showWeightError"
-              hide-details="auto"
-              rounded="lg"
+              :show-required-text="showWeightError"
+              required-text="This field is required"
               @blur="touched.grossWeight = true"
-            ></v-text-field>
-            <div v-if="showWeightError" class="required-text mt-1">This field is required</div>
+            />
           </v-col>
 
           <v-col cols="12" md="2">
-            <label class="field-label">Moisture (%)</label>
-            <v-text-field
+            <FormField
+              label="Moisture (%)"
               v-model="form.moisture"
               placeholder="Enter Moisture %"
-              variant="outlined"
-              density="comfortable"
-              hide-details
-              rounded="lg"
-            ></v-text-field>
+            />
           </v-col>
 
           <v-col cols="12" md="2">
-            <label class="field-label">Supplier (Optional)</label>
-            <v-text-field
+            <FormField
+              label="Supplier (Optional)"
               v-model="form.supplier"
               placeholder="Enter Supplier"
-              variant="outlined"
-              density="comfortable"
-              hide-details
-              rounded="lg"
-            ></v-text-field>
+            />
           </v-col>
 
           <v-col cols="12" md="2">
-            <label class="field-label">Remark</label>
-            <v-textarea
-              v-model="form.remark"
-              placeholder="Enter Remark"
-              variant="outlined"
-              density="comfortable"
-              hide-details
-              rows="1"
-              auto-grow
-              rounded="lg"
-            ></v-textarea>
+            <FormField label="Remark" v-model="form.remark" placeholder="Enter Remark" textarea />
           </v-col>
         </v-row>
 
@@ -103,45 +66,16 @@
 
     <v-card v-if="canView" class="table-card" elevation="2" rounded="lg">
       <v-card-text class="px-0 py-0">
-        <div class="table-head px-6 py-4 d-flex flex-wrap align-center">
-          <div class="d-flex align-center mr-6 mb-3 mb-md-0">
-            <v-icon icon="mdi-cube-outline" size="28" class="mr-3"></v-icon>
-            <h3 class="text-h5 font-weight-bold mr-3">Goods Received</h3>
-            <v-chip color="success" variant="tonal">{{ filteredGoods.length }} Records</v-chip>
-          </div>
-
-          <v-spacer></v-spacer>
-
-          <v-text-field
-            v-model="search"
-            placeholder="Search goods received..."
-            prepend-inner-icon="mdi-magnify"
-            hide-details
-            variant="outlined"
-            density="comfortable"
-            rounded="pill"
-            class="search-input mr-4 mb-3 mb-md-0"
-          ></v-text-field>
-
-          <div v-if="!hasOnlyViewPermission" class="d-flex align-center gap-2 flex-wrap">
-            <v-btn
-              color="info"
-              variant="tonal"
-              rounded="pill"
-              prepend-icon="mdi-refresh"
-              :loading="isLoading"
-              @click="loadGoods"
-            >
-              Refresh
-            </v-btn>
-            <v-btn color="success" variant="tonal" rounded="pill" prepend-icon="mdi-download">
-              Export
-            </v-btn>
-            <v-btn color="success" variant="tonal" rounded="pill" prepend-icon="mdi-upload">
-              Import
-            </v-btn>
-          </div>
-        </div>
+        <GoodsTableToolbar
+          :search="search"
+          :record-count="filteredGoods.length"
+          :is-loading="isLoading"
+          :has-action-permission="!hasOnlyViewPermission"
+          @update:search="search = $event"
+          @refresh="loadGoods"
+          @export="handleExport"
+          @import="handleImport"
+        />
 
         <v-data-table
           :headers="headers"
@@ -153,32 +87,14 @@
           no-data-text="No records found"
         >
           <template v-if="canShowActions" v-slot:[`item.actions`]="{ item }">
-            <div class="d-flex flex-column align-center py-2">
-              <v-btn
-                v-if="canView && !hasOnlyViewPermission"
-                icon="mdi-eye"
-                size="small"
-                variant="text"
-                color="grey-darken-3"
-                @click="openViewDialog(item)"
-              ></v-btn>
-              <v-btn
-                v-if="canEdit"
-                icon="mdi-pencil"
-                size="small"
-                variant="text"
-                color="info"
-                @click="openEditDialog(item)"
-              ></v-btn>
-              <v-btn
-                v-if="canDelete"
-                icon="mdi-delete"
-                size="small"
-                variant="text"
-                color="error"
-                @click="deleteRecord(item.id)"
-              ></v-btn>
-            </div>
+            <GoodsActionButtons
+              :show-view="canView && !hasOnlyViewPermission"
+              :can-edit="canEdit"
+              :can-delete="canDelete"
+              @view="openViewDialog(item)"
+              @edit="openEditDialog(item)"
+              @delete="deleteRecord(item.id)"
+            />
           </template>
         </v-data-table>
       </v-card-text>
@@ -190,122 +106,17 @@
       </v-card-text>
     </v-card>
 
-    <v-dialog v-model="isViewDialogOpen" max-width="650">
-      <v-card>
-        <v-card-title class="text-h6">Goods Received Details</v-card-title>
-        <v-card-text v-if="selectedRecord" class="pt-4">
-          <v-row dense>
-            <v-col cols="6"><strong>GRN:</strong> {{ selectedRecord.grn }}</v-col>
-            <v-col cols="6"><strong>Color:</strong> {{ selectedRecord.color }}</v-col>
-            <v-col cols="6"><strong>Type:</strong> {{ selectedRecord.type }}</v-col>
-            <v-col cols="6"
-              ><strong>Gross Weight:</strong> {{ selectedRecord.grossWeight }} Kg</v-col
-            >
-            <v-col cols="6"><strong>Moisture:</strong> {{ selectedRecord.moisture }} %</v-col>
-            <v-col cols="6"
-              ><strong>Actual Weight:</strong> {{ selectedRecord.actualWeight }} Kg</v-col
-            >
-            <v-col cols="6"><strong>Supplier:</strong> {{ selectedRecord.supplier || '-' }}</v-col>
-            <v-col cols="6"
-              ><strong>Created At:</strong> {{ selectedRecord.createdAtDisplay }}</v-col
-            >
-            <v-col cols="12"><strong>Remark:</strong> {{ selectedRecord.remark || '-' }}</v-col>
-          </v-row>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="primary" variant="text" @click="isViewDialogOpen = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <GoodsViewDialog v-model="isViewDialogOpen" :record="selectedRecord" />
 
-    <v-dialog v-model="isEditDialogOpen" max-width="760">
-      <v-card>
-        <v-card-title class="text-h6">Edit Goods Received</v-card-title>
-        <v-card-text class="pt-4">
-          <v-row dense>
-            <v-col cols="12" md="6">
-              <label class="field-label">Color</label>
-              <v-text-field
-                v-model="editForm.color"
-                placeholder="Enter Color"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                rounded="lg"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12" md="6">
-              <label class="field-label">Type</label>
-              <v-text-field
-                v-model="editForm.type"
-                placeholder="Enter Type"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                rounded="lg"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12" md="6">
-              <label class="field-label">Gross Weight (Kg)</label>
-              <v-text-field
-                v-model="editForm.grossWeight"
-                placeholder="Enter Gross Weight"
-                variant="outlined"
-                density="comfortable"
-                :error="showEditWeightError"
-                hide-details="auto"
-                rounded="lg"
-                @blur="editTouched.grossWeight = true"
-              ></v-text-field>
-              <div v-if="showEditWeightError" class="required-text mt-1">
-                This field is required
-              </div>
-            </v-col>
-            <v-col cols="12" md="6">
-              <label class="field-label">Moisture (%)</label>
-              <v-text-field
-                v-model="editForm.moisture"
-                placeholder="Enter Moisture %"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                rounded="lg"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12" md="6">
-              <label class="field-label">Supplier (Optional)</label>
-              <v-text-field
-                v-model="editForm.supplier"
-                placeholder="Enter Supplier"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                rounded="lg"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12" md="6">
-              <label class="field-label">Remark</label>
-              <v-textarea
-                v-model="editForm.remark"
-                placeholder="Enter Remark"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                rows="1"
-                auto-grow
-                rounded="lg"
-              ></v-textarea>
-            </v-col>
-          </v-row>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn variant="text" @click="isEditDialogOpen = false">Cancel</v-btn>
-          <v-btn color="success" :loading="isUpdating" @click="updateRecord">Update</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <GoodsEditDialog
+      v-model="isEditDialogOpen"
+      :form="editForm"
+      :show-weight-error="showEditWeightError"
+      :is-updating="isUpdating"
+      @update:form="editForm = $event"
+      @blur-gross-weight="editTouched.grossWeight = true"
+      @submit="updateRecord"
+    />
 
     <v-btn
       v-if="!hasOnlyViewPermission"
@@ -342,6 +153,11 @@ import { signInAnonymously } from 'firebase/auth'
 import type { FirebaseError } from 'firebase/app'
 import { auth, db } from '@/plugins/firebase'
 import PageHeader from '@/component/common/PageHeader.vue'
+import FormField from '@/component/common/FormField.vue'
+import GoodsActionButtons from '@/component/goods/GoodsActionButtons.vue'
+import GoodsViewDialog from '@/component/goods/GoodsViewDialog.vue'
+import GoodsEditDialog from '@/component/goods/GoodsEditDialog.vue'
+import GoodsTableToolbar from '@/component/goods/GoodsTableToolbar.vue'
 import { getNextGRN } from '@/helpers/utils/grnUtils'
 
 type GoodsRecord = {
@@ -810,6 +626,14 @@ const deleteRecord = async (id?: string) => {
   }
 }
 
+const handleExport = () => {
+  showToast('Export functionality coming soon.', 'info')
+}
+
+const handleImport = () => {
+  showToast('Import functionality coming soon.', 'info')
+}
+
 onMounted(() => {
   loadUserPermissions()
   loadGoods()
@@ -834,27 +658,6 @@ onBeforeUnmount(() => {
 .form-title-bar {
   background: #2f8533;
   color: #fff;
-}
-
-.field-label {
-  display: inline-block;
-  margin-bottom: 8px;
-  color: #455a64;
-  font-size: 14px;
-}
-
-.required-text {
-  color: #f44336;
-  font-size: 14px;
-}
-
-.table-head {
-  background: #dfe4e8;
-}
-
-.search-input {
-  min-width: 300px;
-  max-width: 420px;
 }
 
 .goods-table :deep(.v-data-table__th) {
