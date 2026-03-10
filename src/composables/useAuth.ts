@@ -1,6 +1,6 @@
 import { ref, onMounted } from 'vue'
 import { auth } from '@/plugins/firebase'
-import { useRouter } from 'vue-router'
+import router from '@/router'
 import type { User } from 'firebase/auth'
 import type { Ref } from 'vue'
 import { signInWithEmailAndPassword } from 'firebase/auth'
@@ -9,7 +9,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 export default function useAuth() {
   const user: Ref<User | null> = ref(null)
   const token: Ref<string | null> = ref(null)
-  const router = useRouter()
 
   const setUser = (firebaseUser: User) => {
     user.value = firebaseUser
@@ -49,8 +48,9 @@ export default function useAuth() {
       const result = await signInWithEmailAndPassword(auth, email, password)
       setUser(result.user)
       return { success: true }
-    } catch (error: never) {
-      return { success: false, error: error.message ?? 'Login failed' }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Login failed'
+      return { success: false, error: message }
     }
   }
 

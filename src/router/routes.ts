@@ -1,6 +1,4 @@
-import type { RouteRecordRaw } from 'vue-router'
-
-const routes: RouteRecordRaw[] = [
+const routes = [
   // Auth layout
   {
     path: '/auth',

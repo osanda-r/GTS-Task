@@ -62,7 +62,7 @@ router.beforeEach(async (to, from, next) => {
 
         const roleDoc = roleSnapshot.docs[0]
         const permissions = Array.isArray(roleDoc?.data().permissions)
-          ? roleDoc.data().permissions.map((permission) => String(permission))
+          ? roleDoc.data().permissions.map((permission: unknown) => String(permission))
           : []
 
         console.log('User permissions:', permissions)

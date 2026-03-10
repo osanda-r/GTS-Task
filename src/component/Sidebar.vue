@@ -83,8 +83,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
 import { auth, db } from '@/plugins/firebase'
+import router from '@/router'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 
 defineOptions({
@@ -99,7 +99,6 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
 }>()
 
-const route = useRoute()
 const userPermissions = ref<string[]>([])
 const userRole = ref<string>('')
 
@@ -163,7 +162,7 @@ const loadUserPermissions = async (uid: string) => {
     )
     const roleDoc = roleSnapshot.docs[0]
     const permissions = Array.isArray(roleDoc?.data().permissions)
-      ? roleDoc.data().permissions.map((permission) => String(permission))
+      ? roleDoc.data().permissions.map((permission: unknown) => String(permission))
       : []
 
     userPermissions.value = permissions
@@ -191,7 +190,8 @@ onUnmounted(() => {
 })
 
 const isActive = (path: string) => {
-  return route.path === path || route.path.startsWith(path + '/')
+  const currentPath = router.currentRoute.value.path
+  return currentPath === path || currentPath.startsWith(path + '/')
 }
 </script>
 

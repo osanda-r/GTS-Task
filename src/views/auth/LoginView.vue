@@ -64,8 +64,12 @@ import { ref } from 'vue'
 import inputValidator from '@/helpers/utils/inputValidator'
 import useAuth from '@/composables/useAuth'
 
+interface FormValidation {
+  validate: () => Promise<{ valid: boolean }>
+}
+
 // Reactive state
-const form = ref(null)
+const form = ref<FormValidation | null>(null)
 const valid = ref(false)
 const email = ref('')
 const password = ref('')
@@ -78,8 +82,8 @@ const { login } = useAuth()
 
 // Email validation rules
 const emailRules = [
-  (v) => !!v || 'Email is required',
-  (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
+  (v: string) => !!v || 'Email is required',
+  (v: string) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
 ]
 
 // Password validation rules
@@ -93,7 +97,8 @@ const togglePasswordVisibility = () => {
 // Handle form submission (login logic)
 const handleLogin = async () => {
   errorMessage.value = ''
-  const { valid: isValid } = await form.value.validate()
+  const validation = await form.value?.validate()
+  const isValid = validation?.valid ?? false
   if (!isValid) return
 
   loading.value = true
@@ -107,7 +112,7 @@ const handleLogin = async () => {
   }
 
   // Handle Firebase error codes
-  handleFirebaseError(result.error)
+  handleFirebaseError(result.error ?? 'Login failed')
 }
 
 // Firebase error handler (simplified)

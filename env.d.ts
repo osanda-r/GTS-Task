@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import 'vue-router'
+
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string
@@ -12,3 +14,5 @@ declare module 'vue-router' {
     type?: string
   }
 }
+
+export {}
