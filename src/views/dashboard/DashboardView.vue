@@ -183,19 +183,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onBeforeUnmount, onMounted, watch } from 'vue'
+import Chart from 'chart.js/auto'
 import { getDoc, doc, getDocs, collection } from 'firebase/firestore'
 import { db, auth } from '@/plugins/firebase'
 import PageHeader from '@/component/common/PageHeader.vue'
 import PeriodSelector from '@/component/common/PeriodSelector.vue'
 import StatRow from '@/component/common/StatRow.vue'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ChartLib = (window as any).Chart
-
 const userName = ref('John')
 const goodsChart = ref<HTMLCanvasElement | null>(null)
 const chartPeriod = ref<'WEEK' | 'MONTH' | 'YEAR'>('MONTH')
+const chartLabels = ref<string[]>([])
+const chartSeries = ref<number[]>([])
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let chartInstance: any = null
 
@@ -322,8 +322,123 @@ const loadUserStats = async () => {
   }
 }
 
+const toSafeDate = (value: unknown): Date | null => {
+  if (!value) return null
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value
+  }
+
+  if (typeof value === 'string') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  if (typeof value === 'object' && value !== null && 'toDate' in value) {
+    const maybeTimestamp = value as { toDate?: () => Date }
+    if (typeof maybeTimestamp.toDate === 'function') {
+      const date = maybeTimestamp.toDate()
+      return Number.isNaN(date.getTime()) ? null : date
+    }
+  }
+
+  return null
+}
+
+const buildWeeklySeries = (dates: Date[]) => {
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const data = [0, 0, 0, 0, 0, 0, 0]
+
+  const now = new Date()
+  const weekStart = new Date(now)
+  const dayOffset = (now.getDay() + 6) % 7
+  weekStart.setDate(now.getDate() - dayOffset)
+  weekStart.setHours(0, 0, 0, 0)
+
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 7)
+
+  dates.forEach((date) => {
+    if (date >= weekStart && date < weekEnd) {
+      const idx = (date.getDay() + 6) % 7
+      data[idx] += 1
+    }
+  })
+
+  return { labels, data }
+}
+
+const buildMonthlySeries = (dates: Date[]) => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  const labels = Array.from({ length: daysInMonth }, (_, i) => String(i + 1))
+  const data = Array.from({ length: daysInMonth }, () => 0)
+
+  dates.forEach((date) => {
+    if (date.getFullYear() === year && date.getMonth() === month) {
+      data[date.getDate() - 1] += 1
+    }
+  })
+
+  return { labels, data }
+}
+
+const buildYearlySeries = (dates: Date[]) => {
+  const labels = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ]
+  const data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  const year = new Date().getFullYear()
+
+  dates.forEach((date) => {
+    if (date.getFullYear() === year) {
+      data[date.getMonth()] += 1
+    }
+  })
+
+  return { labels, data }
+}
+
+const loadGoodsChartData = async () => {
+  try {
+    const goodsCollection = collection(db, 'goodsReceived')
+    const snapshot = await getDocs(goodsCollection)
+    const createdDates = snapshot.docs
+      .map((row) => toSafeDate(row.data().createdAt))
+      .filter((date): date is Date => date !== null)
+
+    const series =
+      chartPeriod.value === 'WEEK'
+        ? buildWeeklySeries(createdDates)
+        : chartPeriod.value === 'MONTH'
+          ? buildMonthlySeries(createdDates)
+          : buildYearlySeries(createdDates)
+
+    chartLabels.value = series.labels
+    chartSeries.value = series.data
+  } catch (error) {
+    console.error('Failed to load chart data:', error)
+    chartLabels.value = []
+    chartSeries.value = []
+  }
+}
+
 const initGoodsChart = () => {
-  if (!goodsChart.value || !ChartLib) {
+  if (!goodsChart.value) {
     return
   }
 
@@ -335,34 +450,14 @@ const initGoodsChart = () => {
   const ctx = goodsChart.value.getContext('2d')
   if (!ctx) return
 
-  const generateData = () => {
-    if (chartPeriod.value === 'WEEK') {
-      return [120, 150, 135, 165, 180, 195, 210]
-    } else if (chartPeriod.value === 'MONTH') {
-      return [300, 350, 320, 380, 420, 450, 480, 520, 550, 600, 650, 700]
-    } else {
-      return [4000, 4500, 5000, 5200, 5800, 6200, 6800, 7200, 7800, 8200, 8800, 9200]
-    }
-  }
-
-  const generateLabels = () => {
-    if (chartPeriod.value === 'WEEK') {
-      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    } else if (chartPeriod.value === 'MONTH') {
-      return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
-    } else {
-      return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    }
-  }
-
-  chartInstance = new ChartLib(ctx, {
+  chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: generateLabels(),
+      labels: chartLabels.value,
       datasets: [
         {
           label: 'Shipments Received',
-          data: generateData(),
+          data: chartSeries.value,
           fill: true,
           borderColor: '#00bcd4',
           backgroundColor: 'rgba(0, 188, 212, 0.1)',
@@ -394,24 +489,22 @@ const initGoodsChart = () => {
 }
 
 watch(chartPeriod, () => {
-  initGoodsChart()
+  loadGoodsChartData().then(() => initGoodsChart())
 })
 
 onMounted(async () => {
   await loadUserName()
   await loadGoodsStats()
   await loadUserStats()
+  await loadGoodsChartData()
+  initGoodsChart()
+})
 
-  // Wait for Chart.js to be available
-  const checkChart = setInterval(() => {
-    const win = window as unknown as { Chart?: unknown }
-    if (typeof win.Chart !== 'undefined') {
-      clearInterval(checkChart)
-      initGoodsChart()
-    }
-  }, 100)
-
-  setTimeout(() => clearInterval(checkChart), 5000)
+onBeforeUnmount(() => {
+  if (chartInstance) {
+    chartInstance.destroy()
+    chartInstance = null
+  }
 })
 </script>
 
