@@ -24,9 +24,9 @@
           :headers="headers"
           :items="filteredUsers"
           :loading="loading"
+          :items-per-page="10"
           item-value="id"
           class="users-table"
-          hide-default-footer
           no-data-text="No users found"
         >
           <template v-slot:[`item.avatar`]="{ item }">
@@ -141,7 +141,6 @@ const headers = [
   { title: 'Email', key: 'email', sortable: true },
   { title: 'Role', key: 'role', sortable: true },
   { title: 'Status', key: 'status', sortable: true },
-  { title: 'Last Login', key: 'lastLogin', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false },
 ]
 

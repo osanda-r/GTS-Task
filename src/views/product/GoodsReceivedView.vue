@@ -81,9 +81,9 @@
           :headers="headers"
           :items="filteredGoods"
           :loading="isLoading"
+          :items-per-page="10"
           item-value="id"
           class="goods-table"
-          hide-default-footer
           no-data-text="No records found"
         >
           <template v-if="canShowActions" v-slot:[`item.actions`]="{ item }">
