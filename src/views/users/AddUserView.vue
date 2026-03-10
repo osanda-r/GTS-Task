@@ -166,9 +166,10 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue'
 import router from '@/router'
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { createUserWithEmailAndPassword, getAuth, signOut, updateProfile } from 'firebase/auth'
+import { deleteApp, getApps, initializeApp } from 'firebase/app'
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
-import { auth, db } from '@/plugins/firebase'
+import { auth, db, firebaseApp } from '@/plugins/firebase'
 import inputValidator from '@/helpers/utils/inputValidator'
 
 interface FormValidation {
@@ -332,11 +333,24 @@ const handleAddUser = async () => {
   }
 
   loading.value = true
+  let secondaryAppToCleanup: ReturnType<typeof initializeApp> | null = null
 
   try {
-    // Create user with Firebase Auth
+    const currentAdminUid = auth.currentUser?.uid || null
+
+    // Create user using a secondary auth instance so current session is preserved.
+    const secondaryAppName = 'SecondaryUserCreation'
+    const existingSecondaryApp = getApps().find((app) => app.name === secondaryAppName)
+    if (existingSecondaryApp) {
+      await deleteApp(existingSecondaryApp)
+    }
+
+    const secondaryApp = initializeApp(firebaseApp.options, secondaryAppName)
+    secondaryAppToCleanup = secondaryApp
+    const secondaryAuth = getAuth(secondaryApp)
+
     const credential = await createUserWithEmailAndPassword(
-      auth,
+      secondaryAuth,
       form.value.email,
       form.value.password,
     )
@@ -354,8 +368,12 @@ const handleAddUser = async () => {
       role: form.value.role,
       status: form.value.status,
       createdAt: serverTimestamp(),
-      createdBy: auth.currentUser?.uid || 'admin',
+      createdBy: currentAdminUid || auth.currentUser?.uid || 'admin',
     })
+
+    await signOut(secondaryAuth)
+    await deleteApp(secondaryApp)
+    secondaryAppToCleanup = null
 
     successMessage.value = 'User created successfully!'
 
@@ -373,6 +391,13 @@ const handleAddUser = async () => {
     errorMessage.value = toUserMessage(errorText)
     console.error('Add user error:', error)
   } finally {
+    if (secondaryAppToCleanup) {
+      try {
+        await deleteApp(secondaryAppToCleanup)
+      } catch {
+        // Ignore cleanup errors for secondary auth app.
+      }
+    }
     loading.value = false
   }
 }
