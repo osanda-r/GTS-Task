@@ -207,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   addDoc,
   collection,
@@ -329,7 +329,7 @@ const showEditWeightError = computed(
   () => editTouched.value.grossWeight && !editForm.value.grossWeight.trim(),
 )
 
-// Permission checks
+// permission checks
 const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
 const canView = computed(
   () => isAdministrator.value || userPermissions.value.includes('page.goods_received.view'),
@@ -419,7 +419,7 @@ const showToast = (text: string, color: 'success' | 'error' | 'warning' | 'info'
     color,
   }
 }
-
+//firebase error messages
 const getFirebaseErrorMessage = (error: unknown) => {
   const e = error as FirebaseError | undefined
   const code = e?.code ?? 'unknown'
@@ -455,7 +455,7 @@ const ensureFirebaseSession = async () => {
     const e = error as FirebaseError | undefined
     const code = e?.code ?? ''
 
-    // If Auth is not configured, continue and let Firestore rules decide access.
+    //authentication errors
     if (
       code === 'auth/configuration-not-found' ||
       code === 'auth/operation-not-allowed' ||
@@ -487,7 +487,7 @@ const loadUserPermissions = async () => {
     const roleName = String(userDoc.data().role ?? '').trim()
     userRole.value = roleName
 
-    // Administrator has all permissions
+    // Admin permissions
     if (roleName.toLowerCase() === 'administrator') {
       userPermissions.value = [
         'page.goods_received.view',
@@ -658,7 +658,7 @@ const saveRecord = async () => {
     return
   }
 
-  // Mark all fields as touched to show errors
+  //mark all fields as touched to show errors
   touched.value = {
     color: true,
     type: true,
@@ -666,7 +666,7 @@ const saveRecord = async () => {
     moisture: true,
   }
 
-  // Check for validation errors
+  //check for validation errors
   if (showColorError.value) {
     showToast('Color is required.', 'warning')
     return
@@ -711,7 +711,6 @@ const saveRecord = async () => {
       createdAt: serverTimestamp(),
     })
 
-    // Optimistic table update so users see the newly saved row immediately.
     const now = new Date().toISOString()
     goods.value = [
       {
@@ -865,10 +864,6 @@ const handleImport = async () => {
 onMounted(() => {
   loadUserPermissions()
   loadGoods()
-})
-
-onBeforeUnmount(() => {
-  // No persistent listeners are used; method kept for lifecycle symmetry.
 })
 </script>
 

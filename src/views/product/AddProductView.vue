@@ -248,6 +248,7 @@ const getColorHexByValue = (value: string) => {
   return match?.hex ?? '#9e9e9e'
 }
 
+// normalize both forms to the stored color value
 const resolveColorValue = (value: string) => {
   const normalized = value.trim().toLowerCase()
   if (!normalized) return 'success'
@@ -261,6 +262,7 @@ const resolveColorValue = (value: string) => {
   return 'success'
 }
 
+//accept both internal values and human-readable labels when importing product types
 const resolveProductTypeValue = (value: string) => {
   const normalized = value.trim().toLowerCase()
   if (!normalized) return 'other'
@@ -381,6 +383,7 @@ const loadProducts = async () => {
 }
 
 const startEdit = (product: ProductRecord) => {
+  //reuse the same form for edit mode
   editingProductId.value = product.id
   form.value = {
     name: product.name,

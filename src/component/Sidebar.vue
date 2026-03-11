@@ -139,7 +139,7 @@ const loadUserPermissions = async (uid: string) => {
       return
     }
 
-    // Administrator has all permissions automatically
+    //administrator has all permissions
     if (roleName.toLowerCase() === 'administrator') {
       userPermissions.value = [
         'page.dashboard.view',

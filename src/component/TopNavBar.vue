@@ -1,6 +1,6 @@
 <template>
   <v-app-bar elevation="0" border="b" color="white" height="64">
-    <!-- Left Section: Menu Icon and Breadcrumb -->
+    <!-- menu icon -->
     <v-app-bar-nav-icon @click="toggleDrawer"></v-app-bar-nav-icon>
 
     <div class="d-flex align-center gap-2 ml-2">
@@ -17,9 +17,8 @@
 
     <v-spacer></v-spacer>
 
-    <!-- Right Section: Actions and User Menu -->
+    <!-- actions and user menu -->
     <div class="d-flex align-center gap-1">
-      <!-- Notifications -->
       <NotificationsDropdown
         :is-menu-open="isNotificationMenuOpen"
         :notifications="notifications"
@@ -29,7 +28,7 @@
         @mark-all-read="markAllAsRead"
       />
 
-      <!-- User Profile Menu -->
+      <!-- profile menu -->
       <v-menu offset-y>
         <template v-slot:activator="{ props }">
           <v-btn v-bind="props" variant="text" class="text-none ml-2" style="text-transform: none">
@@ -107,12 +106,12 @@ const notificationStorageKey = computed(() => {
   return `gts_last_read_notifications_${uid}`
 })
 
-// Get current page title from route meta
+// get current page title
 const currentPageTitle = computed(() => {
   return (route.meta.title as string) || (route.name as string) || ''
 })
 
-// get user name and initials for avatar
+// get user name
 const userName = computed(() => {
   const currentUser = auth.currentUser
   if (!currentUser) return 'User'
@@ -178,7 +177,6 @@ const mergeAndUpdateNotifications = (
 
 const subscribeToNotifications = () => {
   try {
-    // Subscribe to goods received
     const goodsQuery = query(
       collection(db, 'goodsReceived'),
       orderBy('createdAt', 'desc'),
@@ -216,7 +214,7 @@ const subscribeToNotifications = () => {
       },
     )
 
-    // Subscribe to users
+    // users
     const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(5))
     unsubscribeUsers = onSnapshot(
       usersQuery,
@@ -325,7 +323,7 @@ const markAllAsRead = () => {
   notifications.value = notifications.value.map((item) => ({ ...item, isUnread: false }))
 }
 
-// Emit event to parent for drawer toggle
+//drawer toggle
 const emit = defineEmits(['toggle-drawer'])
 
 const toggleDrawer = () => {

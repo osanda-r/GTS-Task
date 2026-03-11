@@ -1,4 +1,4 @@
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { auth } from '@/plugins/firebase'
 import router from '@/router'
 import type { User } from 'firebase/auth'
@@ -9,16 +9,16 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 export default function useAuth() {
   const user: Ref<User | null> = ref(null)
   const token: Ref<string | null> = ref(null)
+  let unsubscribeAuth: (() => void) | null = null
 
-  const setUser = (firebaseUser: User) => {
+  const setUser = async (firebaseUser: User) => {
     user.value = firebaseUser
-    firebaseUser
-      .getIdToken(true) // Force refresh the token to get a fresh one
-      .then((idToken) => {
-        token.value = idToken
-        localStorage.setItem('firebaseToken', idToken) // Save token in localStorage
-      })
-      .catch((error) => console.error('Token Error: ', error))
+    try {
+      token.value = await firebaseUser.getIdToken()
+    } catch (error) {
+      console.error('Token Error:', error)
+      token.value = null
+    }
   }
 
   const refreshToken = async () => {
@@ -26,7 +26,6 @@ export default function useAuth() {
       if (auth.currentUser) {
         const refreshedToken = await auth.currentUser.getIdToken(true)
         token.value = refreshedToken
-        localStorage.setItem('firebaseToken', refreshedToken)
       } else {
         console.error('No current user to refresh token.')
       }
@@ -39,8 +38,7 @@ export default function useAuth() {
     await auth.signOut()
     user.value = null
     token.value = null
-    localStorage.removeItem('firebaseToken')
-    await router.push({ name: 'Login' }) // Redirect to Login
+    await router.push({ name: 'Login' })
   }
 
   const login = async (email: string, password: string) => {
@@ -54,22 +52,24 @@ export default function useAuth() {
     }
   }
 
-  const handleAuthStateChanged = (firebaseUser: User | null) => {
+  const handleAuthStateChanged = async (firebaseUser: User | null) => {
     if (firebaseUser) {
-      setUser(firebaseUser)
+      await setUser(firebaseUser)
     } else {
       user.value = null
       token.value = null
-      localStorage.removeItem('firebaseToken')
     }
   }
 
   onMounted(() => {
-    // Listen for user authentication state changes
-    const unsubscribe = auth.onAuthStateChanged(handleAuthStateChanged)
+    unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
+      void handleAuthStateChanged(firebaseUser)
+    })
+  })
 
-    // Clean up the subscription on component unmount
-    return () => unsubscribe()
+  onUnmounted(() => {
+    unsubscribeAuth?.()
+    unsubscribeAuth = null
   })
 
   return {

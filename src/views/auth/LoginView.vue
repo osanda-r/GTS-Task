@@ -76,25 +76,19 @@ const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
-
-// Authentication logic
 const { login } = useAuth()
 
-// Email validation rules
+//validation rules
 const emailRules = [
   (v: string) => !!v || 'Email is required',
   (v: string) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
 ]
-
-// Password validation rules
 const passwordRules = inputValidator('Password').required().minChar(6).getRules()
-
-// Toggle password visibility
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
 }
 
-// Handle form submission (login logic)
+// Handle form submission
 const handleLogin = async () => {
   errorMessage.value = ''
   const validation = await form.value?.validate()
@@ -105,24 +99,21 @@ const handleLogin = async () => {
   const result = await login(email.value, password.value)
   loading.value = false
 
-  // If login is successful, redirect
   if (result.success) {
     window.location.href = '/'
     return
   }
 
-  // Handle Firebase error codes
+  //error handling
   handleFirebaseError(result.error ?? 'Login failed')
 }
-
-// Firebase error handler (simplified)
 const handleFirebaseError = (error: string) => {
   if (error.startsWith('Firebase: Error (')) {
     const match = error.match(/\(auth\/[\w-]+\)/)
     if (match) error = match[0].replace(/[()]/g, '')
   }
 
-  // Map error codes to user-friendly messages
+  //error codes for user-friendly messages
   switch (error) {
     case 'auth/invalid-email':
       errorMessage.value = 'Invalid email format. Please try again.'

@@ -217,12 +217,12 @@ const saveProfile = async () => {
   successMessage.value = ''
 
   try {
-    // Update display name in Firebase Auth
+    //update display name
     await updateProfile(currentUser.value, {
       displayName: editForm.value.displayName.trim(),
     })
 
-    // Update user profile in Firestore
+    //update user profile in Firestore
     const userDocRef = doc(db, 'users', currentUser.value.uid)
     await updateDoc(userDocRef, {
       name: editForm.value.displayName.trim(),
@@ -231,7 +231,6 @@ const saveProfile = async () => {
     successMessage.value = 'Profile updated successfully!'
     isEditing.value = false
 
-    // Clear success message after 3 seconds
     setTimeout(() => {
       successMessage.value = ''
     }, 3000)
@@ -248,7 +247,7 @@ const loadUserData = async () => {
   try {
     if (!currentUser.value) return
 
-    // Load user profile from Firestore
+    //load user profile from Firestore
     const userDocRef = doc(db, 'users', currentUser.value.uid)
     const userDocSnap = await getDoc(userDocRef)
 
@@ -256,18 +255,18 @@ const loadUserData = async () => {
       const data = userDocSnap.data()
       userRole.value = data.role || 'User'
 
-      // Format created date
+      //created date
       if (data.createdAt) {
         const date = new Date(data.createdAt.toDate?.() || data.createdAt)
         userCreatedAt.value = date.toLocaleDateString()
       }
     }
 
-    // Set edit form values
+    //edit form values
     editForm.value.displayName = currentUser.value.displayName || ''
     editForm.value.email = currentUser.value.email || ''
 
-    // Set last login
+    //last login
     if (currentUser.value.metadata?.lastSignInTime) {
       const lastLogin = new Date(currentUser.value.metadata.lastSignInTime)
       lastLoginTime.value = lastLogin.toLocaleString()

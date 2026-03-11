@@ -404,7 +404,7 @@ const permissionLookup = new Map(
   ),
 )
 
-// Permission checks
+//Permission checks
 const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
 const canCreate = computed(
   () => isAdministrator.value || userPermissions.value.includes('page.roles.create'),

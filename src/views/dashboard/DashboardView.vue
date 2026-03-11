@@ -12,7 +12,7 @@
       </template>
     </PageHeader>
 
-    <!-- Metrics Cards -->
+    <!-- metrics Cards -->
     <v-row class="mb-6">
       <v-col cols="12" sm="6" md="3">
         <MetricCard
@@ -51,7 +51,7 @@
       </v-col>
     </v-row>
 
-    <!-- Charts Section -->
+    <!-- charts Section -->
     <DashboardChartsSection
       :period="chartPeriod"
       :labels="chartLabels"
@@ -60,7 +60,7 @@
       @update:period="chartPeriod = $event"
     />
 
-    <!-- Goods Received Stats -->
+    <!-- goods Received -->
     <v-row>
       <v-col cols="12" md="6">
         <GoodsReceivedStatsCard :stats="goodsStats" />
@@ -113,10 +113,10 @@ let unsubscribeTopProducts: (() => void) | null = null
 const userPermissions = ref<string[]>([])
 const userRole = ref('')
 
-// Top Products
+//top products part
 const topProducts = ref<TopProduct[]>([])
 
-// Statistics
+//statistics part
 const goodsStats = ref({
   totalShipments: 0,
   totalWeight: 0,
@@ -153,7 +153,7 @@ const loadUserName = async () => {
     console.error('Failed to load user name:', error)
   }
 }
-
+//user permissions part
 const loadUserPermissions = async () => {
   try {
     if (!auth.currentUser?.uid) {
@@ -419,35 +419,5 @@ onBeforeUnmount(() => {
   background: #f5f5f5;
   padding: 30px 20px;
   min-height: 100vh;
-}
-
-.metric-card {
-  background: #fff !important;
-  border: 1px solid #e0e0e0;
-  transition:
-    transform 0.3s ease,
-    box-shadow 0.3s ease;
-}
-
-.metric-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
-}
-
-.chart-card {
-  background: #fff !important;
-  border: 1px solid #e0e0e0;
-}
-
-.stat-item {
-  border-color: #e0e0e0 !important;
-}
-
-.border-bottom {
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.gap-2 {
-  gap: 8px;
 }
 </style>

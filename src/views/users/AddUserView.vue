@@ -336,7 +336,7 @@ const handleAddUser = async () => {
   try {
     const currentAdminUid = auth.currentUser?.uid || null
 
-    // Create user using a secondary auth instance so current session is preserved.
+    //create user using a secondary auth instance so current session is preserved
     const secondaryAppName = 'SecondaryUserCreation'
     const existingSecondaryApp = getApps().find((app) => app.name === secondaryAppName)
     if (existingSecondaryApp) {
@@ -353,12 +353,12 @@ const handleAddUser = async () => {
       form.value.password,
     )
 
-    // Update display name
+    //update display name
     await updateProfile(credential.user, {
       displayName: form.value.fullName,
     })
 
-    // Create user profile in Firestore
+    //create user profile in Firestore
     await setDoc(doc(db, 'users', credential.user.uid), {
       uid: credential.user.uid,
       name: form.value.fullName,
@@ -392,9 +392,7 @@ const handleAddUser = async () => {
     if (secondaryAppToCleanup) {
       try {
         await deleteApp(secondaryAppToCleanup)
-      } catch {
-        // Ignore cleanup errors for secondary auth app.
-      }
+      } catch {}
     }
     loading.value = false
   }
