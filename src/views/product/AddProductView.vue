@@ -114,7 +114,7 @@
           icon="mdi-package-variant-closed"
           chip-color="primary"
           search-placeholder="Search products..."
-          :show-export-import="false"
+          :show-export-import="true"
           @update:search="search = $event"
           @refresh="loadProducts"
           @export="handleExport"
@@ -147,14 +147,16 @@
           </template>
 
           <template v-slot:[`item.actions`]="{ item }">
-            <GoodsActionButtons
-              :show-view="false"
-              :can-edit="true"
-              :can-delete="true"
-              :vertical="false"
-              @edit="startEdit(asProduct(item))"
-              @delete="removeProduct(asProduct(item).id)"
-            />
+            <div class="product-actions-cell">
+              <GoodsActionButtons
+                :show-view="false"
+                :can-edit="true"
+                :can-delete="true"
+                :vertical="false"
+                @edit="startEdit(asProduct(item))"
+                @delete="removeProduct(asProduct(item).id)"
+              />
+            </div>
           </template>
         </AppDataTable>
       </template>
@@ -192,6 +194,12 @@ import {
   normalizeProductType,
   productTypeOptions,
 } from '@/helpers/utils/productIconUtils'
+import {
+  exportExcelFile,
+  getCellValue,
+  pickExcelFile,
+  readExcelFile,
+} from '@/helpers/utils/excelUtils'
 
 type ProductRecord = {
   id: string
@@ -218,7 +226,7 @@ const headers = [
   { title: 'Units', key: 'units', sortable: true },
   { title: 'Price', key: 'price', sortable: true },
   { title: 'Color', key: 'color', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'center', width: 120 },
 ]
 
 const colorOptions: ColorOption[] = [
@@ -238,6 +246,32 @@ const getColorLabelByValue = (value: string) => {
 const getColorHexByValue = (value: string) => {
   const match = colorOptions.find((option) => option.value === value)
   return match?.hex ?? '#9e9e9e'
+}
+
+const resolveColorValue = (value: string) => {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return 'success'
+
+  const byValue = colorOptions.find((option) => option.value.toLowerCase() === normalized)
+  if (byValue) return byValue.value
+
+  const byTitle = colorOptions.find((option) => option.title.toLowerCase() === normalized)
+  if (byTitle) return byTitle.value
+
+  return 'success'
+}
+
+const resolveProductTypeValue = (value: string) => {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return 'other'
+
+  const byValue = productTypeOptions.find((option) => option.value === normalized)
+  if (byValue) return byValue.value
+
+  const byTitle = productTypeOptions.find((option) => option.title.toLowerCase() === normalized)
+  if (byTitle) return byTitle.value
+
+  return normalizeProductType(normalized)
 }
 
 const form = ref({
@@ -377,11 +411,77 @@ const removeProduct = async (id: string) => {
 }
 
 const handleExport = () => {
-  showToast('Export functionality coming soon.', 'info')
+  try {
+    const rows = filteredProducts.value.map((item) => ({
+      Name: item.name,
+      Type: item.type,
+      Units: item.units,
+      Price: item.price,
+      Color: getColorLabelByValue(item.color),
+    }))
+
+    exportExcelFile(rows, 'Products', `products-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    showToast('Products exported successfully.', 'success')
+  } catch (error) {
+    console.error('Failed to export products:', error)
+    showToast('Failed to export products.', 'error')
+  }
 }
 
-const handleImport = () => {
-  showToast('Import functionality coming soon.', 'info')
+const handleImport = async () => {
+  try {
+    const file = await pickExcelFile()
+    if (!file) return
+
+    const rows = await readExcelFile(file)
+    if (rows.length === 0) {
+      showToast('The selected Excel file has no rows.', 'warning')
+      return
+    }
+
+    let imported = 0
+
+    for (const row of rows) {
+      const name = getCellValue(row, ['name', 'product name'])
+      const typeRaw = getCellValue(row, ['type', 'product type'])
+      const unitsRaw = getCellValue(row, ['units', 'units sold'])
+      const priceRaw = getCellValue(row, ['price', 'price (rs)'])
+      const colorRaw = getCellValue(row, ['color', 'card color'])
+
+      const units = Number(unitsRaw)
+      const price = Number(priceRaw)
+
+      if (!name || !Number.isFinite(units) || units <= 0 || !Number.isFinite(price) || price < 0) {
+        continue
+      }
+
+      const type = resolveProductTypeValue(typeRaw)
+      const color = resolveColorValue(colorRaw)
+
+      await addDoc(productsCollection, {
+        name: name.trim(),
+        type,
+        units,
+        price,
+        color,
+        icon: getProductIconByType(type),
+        createdAt: serverTimestamp(),
+      })
+
+      imported += 1
+    }
+
+    if (imported === 0) {
+      showToast('No valid rows found to import.', 'warning')
+      return
+    }
+
+    await loadProducts()
+    showToast(`Imported ${imported} product(s) successfully.`, 'success')
+  } catch (error) {
+    console.error('Failed to import products:', error)
+    showToast('Failed to import products.', 'error')
+  }
 }
 
 const saveProduct = async () => {
@@ -457,6 +557,15 @@ onMounted(() => {
   color: #37474f;
   font-size: 15px;
   font-weight: 600;
+}
+
+.products-table :deep(td:last-child) {
+  text-align: center;
+}
+
+.product-actions-cell {
+  display: flex;
+  justify-content: center;
 }
 
 .color-dot {
