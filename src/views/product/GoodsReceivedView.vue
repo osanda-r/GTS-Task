@@ -200,15 +200,6 @@
       @submit="updateRecord"
     />
 
-    <v-btn
-      v-if="!hasOnlyViewPermission"
-      class="floating-menu"
-      color="success"
-      icon="mdi-menu"
-      size="56"
-      elevation="8"
-    ></v-btn>
-
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
       {{ snackbar.text }}
     </v-snackbar>
@@ -811,13 +802,6 @@ onBeforeUnmount(() => {
 
 .goods-table :deep(tbody tr) {
   border-bottom: 1px solid #e3e7ea;
-}
-
-.floating-menu {
-  position: fixed;
-  right: 26px;
-  bottom: 26px;
-  z-index: 10;
 }
 
 @media (max-width: 960px) {
