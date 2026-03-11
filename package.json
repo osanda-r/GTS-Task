@@ -19,7 +19,8 @@
     "pinia": "^3.0.1",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0",
-    "vuefire": "^3.2.2"
+    "vuefire": "^3.2.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.0",

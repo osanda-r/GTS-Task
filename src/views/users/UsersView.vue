@@ -145,6 +145,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  writeBatch,
   where,
 } from 'firebase/firestore'
 import { auth, db } from '@/plugins/firebase'
@@ -157,6 +158,12 @@ import UserActionButtons from '@/component/users/UserActionButtons.vue'
 import UserDeleteDialog from '@/component/users/UserDeleteDialog.vue'
 import UserEditDialog from '@/component/users/UserEditDialog.vue'
 import UserViewDialog from '@/component/users/UserViewDialog.vue'
+import {
+  exportExcelFile,
+  getCellValue,
+  pickExcelFile,
+  readExcelFile,
+} from '@/helpers/utils/excelUtils'
 import type { Timestamp } from 'firebase/firestore'
 
 interface UserRecord {
@@ -386,11 +393,86 @@ const confirmDeleteUser = async () => {
 }
 
 const handleExport = () => {
-  showToast('Export functionality coming soon.', 'info')
+  try {
+    const rows = filteredUsers.value.map((user) => ({
+      UID: user.uid,
+      Name: user.name,
+      Email: user.email,
+      Role: user.role,
+      Status: user.status,
+    }))
+
+    exportExcelFile(rows, 'Users', `users-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    showToast('Users exported successfully.', 'success')
+  } catch (error) {
+    console.error('Failed to export users:', error)
+    showToast('Failed to export users.', 'error')
+  }
 }
 
-const handleImport = () => {
-  showToast('Import functionality coming soon.', 'info')
+const handleImport = async () => {
+  if (!canCreate.value && !canEdit.value) {
+    showToast('You do not have permission to import users.', 'error')
+    return
+  }
+
+  try {
+    const file = await pickExcelFile()
+    if (!file) return
+
+    const rows = await readExcelFile(file)
+    if (rows.length === 0) {
+      showToast('The selected Excel file has no rows.', 'warning')
+      return
+    }
+
+    const batch = writeBatch(db)
+    let imported = 0
+
+    for (const row of rows) {
+      const name = getCellValue(row, ['name', 'full name'])
+      const email = getCellValue(row, ['email'])
+      const role = getCellValue(row, ['role']) || 'User'
+      const status = getCellValue(row, ['status']) || 'Active'
+      const uidFromFile = getCellValue(row, ['uid', 'user id', 'id'])
+
+      if (!name || !email) {
+        continue
+      }
+
+      const userRef = uidFromFile ? doc(db, 'users', uidFromFile) : doc(collection(db, 'users'))
+      const uid = uidFromFile || userRef.id
+
+      batch.set(
+        userRef,
+        {
+          uid,
+          name,
+          email,
+          role,
+          status,
+          updatedAt: serverTimestamp(),
+          updatedBy: auth.currentUser?.uid || 'admin',
+          createdAt: serverTimestamp(),
+        },
+        { merge: true },
+      )
+
+      imported += 1
+    }
+
+    if (imported === 0) {
+      showToast('No valid rows found to import.', 'warning')
+      return
+    }
+
+    await batch.commit()
+    await loadUsers()
+    showToast(`Imported ${imported} user record(s) successfully.`, 'success')
+  } catch (error) {
+    console.error('Failed to import users:', error)
+    showToast('Failed to import users.', 'error')
+  }
 }
 
 const headers = [

@@ -234,6 +234,12 @@ import GoodsViewDialog from '@/component/goods/GoodsViewDialog.vue'
 import GoodsEditDialog from '@/component/goods/GoodsEditDialog.vue'
 import GoodsTableToolbar from '@/component/goods/GoodsTableToolbar.vue'
 import { getNextGRN } from '@/helpers/utils/grnUtils'
+import {
+  exportExcelFile,
+  getCellValue,
+  pickExcelFile,
+  readExcelFile,
+} from '@/helpers/utils/excelUtils'
 
 type GoodsRecord = {
   id: string
@@ -758,11 +764,102 @@ const deleteRecord = async (id?: string) => {
 }
 
 const handleExport = () => {
-  showToast('Export functionality coming soon.', 'info')
+  try {
+    const rows = filteredGoods.value.map((row) => ({
+      GRN: row.grn,
+      Color: row.color,
+      Type: row.type,
+      'Gross Weight (Kg)': row.grossWeight,
+      'Moisture (%)': row.moisture,
+      'Actual Weight (Kg)': row.actualWeight,
+      Supplier: row.supplier,
+      Remark: row.remark,
+      'Created At': row.createdAtDisplay,
+    }))
+
+    exportExcelFile(
+      rows,
+      'GoodsReceived',
+      `goods-received-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    )
+    showToast('Goods records exported successfully.', 'success')
+  } catch (error) {
+    console.error('Failed to export goods records:', error)
+    showToast('Failed to export goods records.', 'error')
+  }
 }
 
-const handleImport = () => {
-  showToast('Import functionality coming soon.', 'info')
+const handleImport = async () => {
+  if (!canCreate.value) {
+    showToast('You do not have permission to import records.', 'error')
+    return
+  }
+
+  try {
+    const file = await pickExcelFile()
+    if (!file) return
+
+    const rows = await readExcelFile(file)
+    if (rows.length === 0) {
+      showToast('The selected Excel file has no rows.', 'warning')
+      return
+    }
+
+    let imported = 0
+
+    for (const row of rows) {
+      const color = getCellValue(row, ['color'])
+      const type = getCellValue(row, ['type'])
+      const supplier = getCellValue(row, ['supplier'])
+      const remark = getCellValue(row, ['remark'])
+      const grossWeightRaw = getCellValue(row, ['gross weight (kg)', 'gross weight', 'grossweight'])
+      const moistureRaw = getCellValue(row, ['moisture (%)', 'moisture', 'moisturepercent'])
+      const grnFromFile = getCellValue(row, ['grn'])
+
+      const grossWeight = Number(grossWeightRaw)
+      const moisture = moistureRaw ? Number(moistureRaw) : 0
+
+      if (!color || !type) {
+        continue
+      }
+
+      if (!Number.isFinite(grossWeight) || grossWeight <= 0) {
+        continue
+      }
+
+      if (!Number.isFinite(moisture) || moisture < 0 || moisture > 100) {
+        continue
+      }
+
+      const grn = grnFromFile || (await getNextGRN())
+      const actualWeight = Math.max(grossWeight - moisture, 0)
+
+      await addDoc(goodsCollection, {
+        grn,
+        color,
+        type,
+        grossWeight,
+        moisture,
+        actualWeight,
+        supplier,
+        remark,
+        createdAt: serverTimestamp(),
+      })
+
+      imported += 1
+    }
+
+    if (imported === 0) {
+      showToast('No valid rows found to import.', 'warning')
+      return
+    }
+
+    await loadGoods()
+    showToast(`Imported ${imported} goods record(s) successfully.`, 'success')
+  } catch (error) {
+    console.error('Failed to import goods records:', error)
+    showToast(getFirebaseErrorMessage(error), 'error')
+  }
 }
 
 onMounted(() => {
