@@ -20,7 +20,7 @@
       @update:model-value="$emit('update:search', $event)"
     ></v-text-field>
 
-    <div class="d-flex align-center gap-2 flex-wrap">
+    <div class="d-flex align-center flex-wrap action-buttons">
       <v-btn
         color="info"
         variant="tonal"
@@ -76,5 +76,9 @@ defineEmits<{
 .search-input {
   min-width: 300px;
   max-width: 420px;
+}
+
+.action-buttons {
+  gap: 10px;
 }
 </style>
