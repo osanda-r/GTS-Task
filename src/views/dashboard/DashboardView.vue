@@ -5,7 +5,7 @@
       :subtitle="`Welcome back, ${userName}! Here's what's happening today.`"
       container-class="mb-6"
     >
-      <template #actions>
+      <template #actions v-if="canAddProduct">
         <v-btn color="success" prepend-icon="mdi-plus" size="large" @click="goToAddProduct">
           ADD PRODUCT
         </v-btn>
@@ -74,8 +74,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, ref, onBeforeUnmount, onMounted, watch } from 'vue'
 import {
+  where,
   getDoc,
   doc,
   getDocs,
@@ -109,6 +110,8 @@ const chartPeriod = ref<'WEEK' | 'MONTH' | 'YEAR'>('MONTH')
 const chartLabels = ref<string[]>([])
 const chartSeries = ref<number[]>([])
 let unsubscribeTopProducts: (() => void) | null = null
+const userPermissions = ref<string[]>([])
+const userRole = ref('')
 
 // Top Products
 const topProducts = ref<TopProduct[]>([])
@@ -126,6 +129,11 @@ const userStats = ref({
   inactiveUsers: 0,
 })
 
+const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
+const canAddProduct = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.products.create'),
+)
+
 const goToAddProduct = () => {
   router.push({ name: 'AddProduct' })
 }
@@ -135,12 +143,54 @@ const loadUserName = async () => {
     if (auth.currentUser?.uid) {
       const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
       if (userDoc.exists()) {
-        const name = userDoc.data().name
+        const data = userDoc.data()
+        const name = data.name
+        userRole.value = String(data.role ?? '').trim()
         userName.value = name?.split(' ')[0] || 'User'
       }
     }
   } catch (error) {
     console.error('Failed to load user name:', error)
+  }
+}
+
+const loadUserPermissions = async () => {
+  try {
+    if (!auth.currentUser?.uid) {
+      userPermissions.value = []
+      return
+    }
+
+    if (isAdministrator.value) {
+      userPermissions.value = [
+        'page.dashboard.view',
+        'page.products.create',
+        'page.goods_received.view',
+        'page.goods_received.create',
+        'page.goods_received.edit',
+        'page.goods_received.delete',
+        'page.users.view',
+        'page.users.create',
+        'page.users.edit',
+        'page.users.delete',
+        'page.roles.view',
+        'page.roles.create',
+        'page.roles.edit',
+        'page.roles.delete',
+      ]
+      return
+    }
+
+    const roleSnapshot = await getDocs(
+      query(collection(db, 'roles'), where('name', '==', userRole.value)),
+    )
+    const roleDoc = roleSnapshot.docs[0]
+    userPermissions.value = Array.isArray(roleDoc?.data().permissions)
+      ? roleDoc.data().permissions.map((permission: unknown) => String(permission))
+      : []
+  } catch (error) {
+    console.error('Failed to load dashboard permissions:', error)
+    userPermissions.value = []
   }
 }
 
@@ -349,6 +399,7 @@ watch(chartPeriod, () => {
 
 onMounted(async () => {
   await loadUserName()
+  await loadUserPermissions()
   await loadGoodsStats()
   await loadUserStats()
   subscribeTopProducts()

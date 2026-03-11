@@ -109,7 +109,9 @@ const localDrawer = computed({
 
 const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
 
-const canViewDashboard = computed(() => true)
+const canViewDashboard = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.dashboard.view'),
+)
 
 const canViewGoodsReceived = computed(
   () => isAdministrator.value || userPermissions.value.includes('page.goods_received.view'),

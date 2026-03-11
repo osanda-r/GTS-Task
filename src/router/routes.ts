@@ -52,6 +52,7 @@ const routes = [
         component: () => import('@/views/product/AddProductView.vue'),
         meta: {
           title: 'Add Product',
+          requiredPermission: 'page.products.create',
         },
       },
       {

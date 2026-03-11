@@ -1,7 +1,7 @@
 <template>
   <v-container fluid class="users-page">
     <PageHeader title="Users" subtitle="Manage user accounts and roles" container-class="mb-4">
-      <template #actions>
+      <template #actions v-if="canCreate">
         <v-btn color="success" prepend-icon="mdi-account-plus" @click="addNewUser">
           Add New User
         </v-btn>
@@ -62,14 +62,13 @@
                     <div class="text-caption text-medium-emphasis">Role</div>
                     <div class="text-body-2">{{ asUserRecord(item).role }}</div>
                   </div>
-              
                 </div>
 
                 <div class="pt-2 border-top-thin d-flex justify-end">
                   <UserActionButtons
                     :can-view="true"
-                    :can-edit="true"
-                    :can-delete="true"
+                    :can-edit="canEdit"
+                    :can-delete="canDelete"
                     @view="viewUser(asUserRecord(item))"
                     @edit="editUser(asUserRecord(item))"
                     @delete="deleteUser()"
@@ -98,8 +97,8 @@
           <template v-slot:[`item.actions`]="{ item }">
             <UserActionButtons
               :can-view="true"
-              :can-edit="true"
-              :can-delete="true"
+              :can-edit="canEdit"
+              :can-delete="canDelete"
               @view="viewUser(asUserRecord(item))"
               @edit="editUser(asUserRecord(item))"
               @delete="deleteUser()"
@@ -117,8 +116,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { collection, getDocs, query, orderBy } from 'firebase/firestore'
-import { db } from '@/plugins/firebase'
+import { collection, doc, getDoc, getDocs, query, orderBy, where } from 'firebase/firestore'
+import { auth, db } from '@/plugins/firebase'
 import router from '@/router'
 import PageHeader from '@/component/common/PageHeader.vue'
 import AppDataTable from '@/component/common/AppDataTable.vue'
@@ -140,6 +139,8 @@ interface UserRecord {
 
 const asUserRecord = (value: unknown): UserRecord => value as UserRecord
 
+const userPermissions = ref<string[]>([])
+const userRole = ref<string>('')
 const search = ref('')
 const loading = ref(false)
 const snackbar = ref({
@@ -153,6 +154,56 @@ const showToast = (text: string, color: 'success' | 'error' | 'warning' | 'info'
     show: true,
     text,
     color,
+  }
+}
+
+const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
+const canCreate = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.users.create'),
+)
+const canEdit = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.users.edit'),
+)
+const canDelete = computed(
+  () => isAdministrator.value || userPermissions.value.includes('page.users.delete'),
+)
+
+const loadUserPermissions = async () => {
+  try {
+    if (!auth.currentUser?.uid) {
+      userPermissions.value = []
+      return
+    }
+
+    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
+    if (!userDoc.exists()) {
+      userPermissions.value = []
+      return
+    }
+
+    const roleName = String(userDoc.data().role ?? '').trim()
+    userRole.value = roleName
+
+    if (roleName.toLowerCase() === 'administrator') {
+      userPermissions.value = [
+        'page.users.view',
+        'page.users.create',
+        'page.users.edit',
+        'page.users.delete',
+      ]
+      return
+    }
+
+    const roleSnapshot = await getDocs(
+      query(collection(db, 'roles'), where('name', '==', roleName)),
+    )
+    const roleDoc = roleSnapshot.docs[0]
+    userPermissions.value = Array.isArray(roleDoc?.data().permissions)
+      ? roleDoc.data().permissions.map((p: unknown) => String(p))
+      : []
+  } catch (error) {
+    console.error('Failed to load user permissions:', error)
+    userPermissions.value = []
   }
 }
 
@@ -236,7 +287,8 @@ const loadUsers = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadUserPermissions()
   loadUsers()
 })
 </script>

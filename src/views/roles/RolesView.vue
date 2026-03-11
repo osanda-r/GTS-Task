@@ -87,7 +87,7 @@
                     class="mr-1 mb-1"
                     variant="outlined"
                   >
-                    {{ permission }}
+                    {{ getPermissionLabel(permission) }}
                   </v-chip>
                   <span v-if="role.permissions.length === 0" class="text-caption text-grey">
                     No permissions assigned.
@@ -116,19 +116,87 @@
             class="mb-3"
           ></v-text-field>
 
-          <v-combobox
-            v-model="roleForm.permissions"
-            :items="permissionOptions"
-            label="Permissions"
+          <v-text-field
+            v-model="permissionSearch"
+            label="Search Permissions"
             variant="outlined"
-            prepend-inner-icon="mdi-key-variant"
-            chips
-            multiple
+            prepend-inner-icon="mdi-magnify"
+            density="comfortable"
             clearable
-            closable-chips
-            hint="Type and press Enter to add permissions"
+            class="mb-3"
+            hint="Search by page, action, or permission key"
             persistent-hint
-          ></v-combobox>
+          ></v-text-field>
+
+          <div class="mb-3">
+            <div class="text-caption font-weight-bold mb-2">Selected Permissions</div>
+            <div v-if="roleForm.permissions.length" class="d-flex flex-wrap ga-2">
+              <v-chip
+                v-for="permission in roleForm.permissions"
+                :key="permission"
+                size="small"
+                closable
+                color="primary"
+                variant="tonal"
+                @click:close="togglePermission(permission)"
+              >
+                {{ getPermissionLabel(permission) }}
+              </v-chip>
+            </div>
+            <div v-else class="text-caption text-grey">No permissions selected.</div>
+          </div>
+
+          <div class="permission-picker">
+            <div
+              v-for="group in filteredPermissionGroups"
+              :key="group.title"
+              class="permission-group mb-4"
+            >
+              <div class="d-flex align-center justify-space-between mb-2">
+                <div>
+                  <div class="text-subtitle-2 font-weight-bold">{{ group.title }}</div>
+                  <div class="text-caption text-medium-emphasis">{{ group.description }}</div>
+                </div>
+                <v-btn
+                  size="small"
+                  variant="text"
+                  color="primary"
+                  @click="togglePermissionGroup(group.permissions)"
+                >
+                  {{ areAllPermissionsSelected(group.permissions) ? 'Clear' : 'Select all' }}
+                </v-btn>
+              </div>
+
+              <v-list class="permission-list" density="compact" rounded="lg" border>
+                <v-list-item
+                  v-for="permission in group.permissions"
+                  :key="permission.value"
+                  @click="togglePermission(permission.value)"
+                >
+                  <template #prepend>
+                    <v-checkbox-btn
+                      :model-value="roleForm.permissions.includes(permission.value)"
+                    ></v-checkbox-btn>
+                  </template>
+
+                  <v-list-item-title>{{ permission.label }}</v-list-item-title>
+                  <v-list-item-subtitle>
+                    {{ permission.description }}
+                  </v-list-item-subtitle>
+
+                  <template #append>
+                    <span class="text-caption text-medium-emphasis permission-key">
+                      {{ permission.value }}
+                    </span>
+                  </template>
+                </v-list-item>
+              </v-list>
+            </div>
+
+            <div v-if="filteredPermissionGroups.length === 0" class="text-caption text-grey">
+              No permissions matched your search.
+            </div>
+          </div>
         </v-card-text>
 
         <v-card-actions>
@@ -169,6 +237,18 @@ interface Role {
   permissions: string[]
 }
 
+interface PermissionOption {
+  value: string
+  label: string
+  description: string
+}
+
+interface PermissionGroup {
+  title: string
+  description: string
+  permissions: PermissionOption[]
+}
+
 const roles = ref<Role[]>([])
 const isLoading = ref(false)
 const isSaving = ref(false)
@@ -188,29 +268,141 @@ const roleForm = ref({
   name: '',
   permissions: [] as string[],
 })
+const permissionSearch = ref('')
 
-const permissionOptions = [
-  // Dashboard
-  'page.dashboard.view',
-
-  // Goods Received - CRUD operations
-  'page.goods_received.view',
-  'page.goods_received.create',
-  'page.goods_received.edit',
-  'page.goods_received.delete',
-
-  // Users - CRUD operations
-  'page.users.view',
-  'page.users.create',
-  'page.users.edit',
-  'page.users.delete',
-
-  // Roles - Management operations
-  'page.roles.view',
-  'page.roles.create',
-  'page.roles.edit',
-  'page.roles.delete',
+const permissionGroups: PermissionGroup[] = [
+  {
+    title: 'Dashboard',
+    description: 'Access the main dashboard page.',
+    permissions: [
+      {
+        value: 'page.dashboard.view',
+        label: 'View Dashboard',
+        description: 'Show the dashboard in navigation and allow opening it.',
+      },
+    ],
+  },
+  {
+    title: 'Products',
+    description: 'Control product creation features.',
+    permissions: [
+      {
+        value: 'page.products.create',
+        label: 'Create Products',
+        description: 'Show Add Product actions and allow opening the Add Product page.',
+      },
+    ],
+  },
+  {
+    title: 'Goods Received',
+    description: 'Manage received goods records.',
+    permissions: [
+      {
+        value: 'page.goods_received.view',
+        label: 'View Goods Received',
+        description: 'Show Goods Received in navigation and allow viewing records.',
+      },
+      {
+        value: 'page.goods_received.create',
+        label: 'Create Goods Received',
+        description: 'Allow adding new goods received records.',
+      },
+      {
+        value: 'page.goods_received.edit',
+        label: 'Edit Goods Received',
+        description: 'Allow updating goods received records.',
+      },
+      {
+        value: 'page.goods_received.delete',
+        label: 'Delete Goods Received',
+        description: 'Allow deleting goods received records.',
+      },
+    ],
+  },
+  {
+    title: 'Users',
+    description: 'Manage user accounts.',
+    permissions: [
+      {
+        value: 'page.users.view',
+        label: 'View Users',
+        description: 'Show Users in navigation and allow viewing users.',
+      },
+      {
+        value: 'page.users.create',
+        label: 'Create Users',
+        description: 'Allow adding new users.',
+      },
+      {
+        value: 'page.users.edit',
+        label: 'Edit Users',
+        description: 'Allow updating user details.',
+      },
+      {
+        value: 'page.users.delete',
+        label: 'Delete Users',
+        description: 'Allow removing users.',
+      },
+    ],
+  },
+  {
+    title: 'Roles',
+    description: 'Manage roles and permissions.',
+    permissions: [
+      {
+        value: 'page.roles.view',
+        label: 'View Roles',
+        description: 'Show Roles in navigation and allow viewing roles.',
+      },
+      {
+        value: 'page.roles.create',
+        label: 'Create Roles',
+        description: 'Allow creating new roles.',
+      },
+      {
+        value: 'page.roles.edit',
+        label: 'Edit Roles',
+        description: 'Allow updating role names and permissions.',
+      },
+      {
+        value: 'page.roles.delete',
+        label: 'Delete Roles',
+        description: 'Allow deleting roles that are not assigned to users.',
+      },
+    ],
+  },
 ]
+
+const filteredPermissionGroups = computed(() => {
+  const search = permissionSearch.value.trim().toLowerCase()
+
+  if (!search) {
+    return permissionGroups
+  }
+
+  return permissionGroups
+    .map((group) => {
+      const permissions = group.permissions.filter((permission) => {
+        const text = [group.title, permission.label, permission.description, permission.value]
+          .join(' ')
+          .toLowerCase()
+
+        return text.includes(search)
+      })
+
+      return {
+        ...group,
+        permissions,
+      }
+    })
+    .filter((group) => group.permissions.length > 0)
+})
+
+const permissionLookup = new Map(
+  permissionGroups.flatMap((group) =>
+    group.permissions.map((permission) => [permission.value, permission.label] as const),
+  ),
+)
 
 // Permission checks
 const isAdministrator = computed(() => userRole.value.toLowerCase() === 'administrator')
@@ -223,6 +415,36 @@ const canEdit = computed(
 const canDelete = computed(
   () => isAdministrator.value || userPermissions.value.includes('page.roles.delete'),
 )
+
+const getPermissionLabel = (value: string) => permissionLookup.get(value) ?? value
+
+const togglePermission = (value: string) => {
+  if (roleForm.value.permissions.includes(value)) {
+    roleForm.value.permissions = roleForm.value.permissions.filter(
+      (permission) => permission !== value,
+    )
+    return
+  }
+
+  roleForm.value.permissions = [...roleForm.value.permissions, value]
+}
+
+const areAllPermissionsSelected = (permissions: PermissionOption[]) => {
+  return permissions.every((permission) => roleForm.value.permissions.includes(permission.value))
+}
+
+const togglePermissionGroup = (permissions: PermissionOption[]) => {
+  if (areAllPermissionsSelected(permissions)) {
+    roleForm.value.permissions = roleForm.value.permissions.filter(
+      (permission) => !permissions.some((item) => item.value === permission),
+    )
+    return
+  }
+
+  const next = new Set(roleForm.value.permissions)
+  permissions.forEach((permission) => next.add(permission.value))
+  roleForm.value.permissions = [...next]
+}
 
 const normalizeRoleKey = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '_')
 
@@ -310,6 +532,7 @@ const openCreateDialog = () => {
   editingRoleId.value = null
   originalRoleName.value = ''
   roleForm.value = { name: '', permissions: [] }
+  permissionSearch.value = ''
   roleDialog.value = true
 }
 
@@ -320,11 +543,13 @@ const editRole = (role: Role) => {
     name: role.name,
     permissions: [...role.permissions],
   }
+  permissionSearch.value = ''
   roleDialog.value = true
 }
 
 const closeDialog = () => {
   roleDialog.value = false
+  permissionSearch.value = ''
 }
 
 const roleNameExists = async (name: string, excludeId?: string) => {
@@ -448,5 +673,20 @@ onMounted(() => {
 
 .role-card:hover {
   transform: translateY(-4px);
+}
+
+.permission-picker {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.permission-list {
+  background: #fafafa;
+}
+
+.permission-key {
+  max-width: 180px;
+  text-align: right;
+  white-space: normal;
 }
 </style>
