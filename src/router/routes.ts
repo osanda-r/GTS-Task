@@ -85,6 +85,14 @@ const routes = [
           requiredPermission: 'page.roles.view',
         },
       },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/ProfileView.vue'),
+        meta: {
+          title: 'Profile',
+        },
+      },
     ],
   },
 

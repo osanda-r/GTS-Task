@@ -49,15 +49,6 @@
             <v-list-item-title>Profile</v-list-item-title>
           </v-list-item>
 
-          <v-list-item @click="goToSettings">
-            <template v-slot:prepend>
-              <v-icon>mdi-cog</v-icon>
-            </template>
-            <v-list-item-title>Settings</v-list-item-title>
-          </v-list-item>
-
-          <v-divider></v-divider>
-
           <v-list-item @click="logout">
             <template v-slot:prepend>
               <v-icon>mdi-logout</v-icon>
@@ -346,13 +337,7 @@ const goHome = () => {
 }
 
 const goToProfile = () => {
-  console.log('Navigate to profile')
-  // Add your navigation logic here
-}
-
-const goToSettings = () => {
-  console.log('Navigate to settings')
-  // Add your navigation logic here
+  router.push({ name: 'Profile' })
 }
 
 const logout = async () => {
