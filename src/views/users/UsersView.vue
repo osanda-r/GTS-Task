@@ -69,9 +69,9 @@
                     :can-view="true"
                     :can-edit="canEdit"
                     :can-delete="canDelete"
-                    @view="viewUser(asUserRecord(item))"
-                    @edit="editUser(asUserRecord(item))"
-                    @delete="deleteUser()"
+                    @view="openViewDialog(asUserRecord(item))"
+                    @edit="openEditDialog(asUserRecord(item))"
+                    @delete="openDeleteDialog(asUserRecord(item))"
                   />
                 </div>
               </v-card-text>
@@ -99,14 +99,33 @@
               :can-view="true"
               :can-edit="canEdit"
               :can-delete="canDelete"
-              @view="viewUser(asUserRecord(item))"
-              @edit="editUser(asUserRecord(item))"
-              @delete="deleteUser()"
+              @view="openViewDialog(asUserRecord(item))"
+              @edit="openEditDialog(asUserRecord(item))"
+              @delete="openDeleteDialog(asUserRecord(item))"
             />
           </template>
         </AppDataTable>
       </template>
     </AppTableCard>
+
+    <UserViewDialog v-model="isViewDialogOpen" :user="selectedUser" />
+
+    <UserEditDialog
+      v-model="isEditDialogOpen"
+      :form="editForm"
+      :is-updating="isUpdating"
+      :role-options="roleOptions"
+      :status-options="statusOptions"
+      @update:form="editForm = $event"
+      @save="saveUserEdits"
+    />
+
+    <UserDeleteDialog
+      v-model="isDeleteDialogOpen"
+      :user-name="selectedUser?.name ?? ''"
+      :is-deleting="isDeleting"
+      @confirm="confirmDeleteUser"
+    />
 
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
       {{ snackbar.text }}
@@ -116,7 +135,18 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { collection, doc, getDoc, getDocs, query, orderBy, where } from 'firebase/firestore'
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from 'firebase/firestore'
 import { auth, db } from '@/plugins/firebase'
 import router from '@/router'
 import PageHeader from '@/component/common/PageHeader.vue'
@@ -124,6 +154,9 @@ import AppDataTable from '@/component/common/AppDataTable.vue'
 import AppTableCard from '@/component/common/AppTableCard.vue'
 import UserTableToolbar from '@/component/users/UserTableToolbar.vue'
 import UserActionButtons from '@/component/users/UserActionButtons.vue'
+import UserDeleteDialog from '@/component/users/UserDeleteDialog.vue'
+import UserEditDialog from '@/component/users/UserEditDialog.vue'
+import UserViewDialog from '@/component/users/UserViewDialog.vue'
 import type { Timestamp } from 'firebase/firestore'
 
 interface UserRecord {
@@ -143,6 +176,20 @@ const userPermissions = ref<string[]>([])
 const userRole = ref<string>('')
 const search = ref('')
 const loading = ref(false)
+const isUpdating = ref(false)
+const isDeleting = ref(false)
+const isViewDialogOpen = ref(false)
+const isEditDialogOpen = ref(false)
+const isDeleteDialogOpen = ref(false)
+const selectedUser = ref<UserRecord | null>(null)
+const roleOptions = ref<string[]>([])
+const statusOptions = ['Active', 'Inactive']
+const editForm = ref({
+  id: '',
+  name: '',
+  role: '',
+  status: 'Active',
+})
 const snackbar = ref({
   show: false,
   text: '',
@@ -219,16 +266,123 @@ const getInitials = (name: string): string => {
   return name.substring(0, 2).toUpperCase()
 }
 
-const viewUser = (user: UserRecord) => {
-  showToast(`Viewing user: ${user.name}`, 'info')
+const loadRoleOptions = async () => {
+  try {
+    const snapshot = await getDocs(collection(db, 'roles'))
+    roleOptions.value = snapshot.docs
+      .map((row) => String(row.data().name ?? '').trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))
+  } catch (error) {
+    console.error('Failed to load role options:', error)
+    roleOptions.value = []
+  }
 }
 
-const editUser = (user: UserRecord) => {
-  router.push({ name: 'AddUser', params: { id: user.id } })
+const openViewDialog = (user: UserRecord) => {
+  selectedUser.value = user
+  isViewDialogOpen.value = true
 }
 
-const deleteUser = () => {
-  showToast('Delete functionality coming soon.', 'info')
+const openEditDialog = async (user: UserRecord) => {
+  if (!canEdit.value) {
+    showToast('You do not have permission to edit users.', 'error')
+    return
+  }
+
+  if (roleOptions.value.length === 0) {
+    await loadRoleOptions()
+  }
+
+  selectedUser.value = user
+  editForm.value = {
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    status: user.status,
+  }
+  isEditDialogOpen.value = true
+}
+
+const saveUserEdits = async () => {
+  if (!canEdit.value) {
+    showToast('You do not have permission to edit users.', 'error')
+    return
+  }
+
+  const name = editForm.value.name.trim()
+  const role = editForm.value.role.trim()
+  const status = editForm.value.status.trim()
+
+  if (!editForm.value.id || !name || !role || !status) {
+    showToast('Name, role, and status are required.', 'warning')
+    return
+  }
+
+  if (isUpdating.value) return
+  isUpdating.value = true
+  try {
+    await updateDoc(doc(db, 'users', editForm.value.id), {
+      name,
+      role,
+      status,
+      updatedAt: serverTimestamp(),
+      updatedBy: auth.currentUser?.uid || 'admin',
+    })
+
+    users.value = users.value.map((user) => {
+      if (user.id !== editForm.value.id) return user
+      return {
+        ...user,
+        name,
+        initials: getInitials(name),
+        role,
+        status,
+      }
+    })
+
+    isEditDialogOpen.value = false
+    showToast('User updated successfully.', 'success')
+  } catch (error) {
+    console.error('Failed to update user:', error)
+    showToast('Failed to update user.', 'error')
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+const openDeleteDialog = (user: UserRecord) => {
+  if (!canDelete.value) {
+    showToast('You do not have permission to delete users.', 'error')
+    return
+  }
+
+  selectedUser.value = user
+  isDeleteDialogOpen.value = true
+}
+
+const confirmDeleteUser = async () => {
+  if (!canDelete.value) {
+    showToast('You do not have permission to delete users.', 'error')
+    return
+  }
+
+  const user = selectedUser.value
+  if (!user?.id) return
+
+  if (isDeleting.value) return
+  isDeleting.value = true
+  try {
+    await deleteDoc(doc(db, 'users', user.id))
+    users.value = users.value.filter((row) => row.id !== user.id)
+    isDeleteDialogOpen.value = false
+    showToast('User deleted successfully.', 'success')
+  } catch (error) {
+    console.error('Failed to delete user:', error)
+    showToast('Failed to delete user.', 'error')
+  } finally {
+    isDeleting.value = false
+  }
 }
 
 const handleExport = () => {
@@ -289,6 +443,7 @@ const loadUsers = async () => {
 
 onMounted(async () => {
   await loadUserPermissions()
+  await loadRoleOptions()
   loadUsers()
 })
 </script>

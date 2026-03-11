@@ -154,7 +154,7 @@
 
                 <div v-if="canShowActions" class="mt-3 pt-2 border-top-thin">
                   <GoodsActionButtons
-                    :show-view="canView && !hasOnlyViewPermission"
+                    :show-view="canView"
                     :can-edit="canEdit"
                     :can-delete="canDelete"
                     :vertical="false"
@@ -170,7 +170,7 @@
           <template v-slot:[`item.actions`]="{ item }">
             <GoodsActionButtons
               v-if="canShowActions"
-              :show-view="canView && !hasOnlyViewPermission"
+              :show-view="canView"
               :can-edit="canEdit"
               :can-delete="canDelete"
               @view="openViewDialog(asGoodsRecord(item))"
@@ -340,9 +340,7 @@ const canDelete = computed(
 const hasOnlyViewPermission = computed(
   () => canView.value && !canCreate.value && !canEdit.value && !canDelete.value,
 )
-const canShowActions = computed(
-  () => canEdit.value || canDelete.value || (canView.value && !hasOnlyViewPermission.value),
-)
+const canShowActions = computed(() => canView.value || canEdit.value || canDelete.value)
 
 const headers = computed(() => {
   const baseHeaders: Array<{ title: string; key: string; sortable?: boolean }> = [
