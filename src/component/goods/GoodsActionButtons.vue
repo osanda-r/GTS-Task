@@ -1,5 +1,10 @@
 <template>
-  <div class="d-flex flex-column align-center py-2">
+  <div
+    :class="[
+      'd-flex py-2',
+      vertical ? 'flex-column align-center' : 'flex-row align-center justify-end ga-1',
+    ]"
+  >
     <v-btn
       v-if="showView"
       icon="mdi-eye"
@@ -28,11 +33,17 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  showView: boolean
-  canEdit: boolean
-  canDelete: boolean
-}>()
+withDefaults(
+  defineProps<{
+    showView: boolean
+    canEdit: boolean
+    canDelete: boolean
+    vertical?: boolean
+  }>(),
+  {
+    vertical: true,
+  },
+)
 
 defineEmits<{
   view: []

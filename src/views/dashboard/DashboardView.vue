@@ -13,95 +13,39 @@
     <!-- Metrics Cards -->
     <v-row class="mb-6">
       <v-col cols="12" sm="6" md="3">
-        <v-card class="metric-card" elevation="0" rounded="lg">
-          <v-card-text class="pa-6">
-            <div class="d-flex justify-space-between align-start">
-              <div>
-                <p class="text-body2 text-grey mb-2">Total Revenue</p>
-                <h2 class="text-h4 font-weight-bold">{{ formatCurrency(totalRevenue) }}</h2>
-                <p
-                  class="text-body2 mt-2"
-                  :class="revenueChange >= 0 ? 'text-success' : 'text-error'"
-                >
-                  <v-icon size="16">{{
-                    revenueChange >= 0 ? 'mdi-trending-up' : 'mdi-trending-down'
-                  }}</v-icon>
-                  {{ Math.abs(revenueChange) }}% from last month
-                </p>
-              </div>
-              <v-avatar color="success" icon="mdi-cash-multiple" size="56"></v-avatar>
-            </div>
-          </v-card-text>
-        </v-card>
+        <MetricCard
+          title="Total Shipments"
+          :value="goodsStats.totalShipments"
+          icon="mdi-truck-delivery-outline"
+          icon-color="success"
+        />
       </v-col>
 
       <v-col cols="12" sm="6" md="3">
-        <v-card class="metric-card" elevation="0" rounded="lg">
-          <v-card-text class="pa-6">
-            <div class="d-flex justify-space-between align-start">
-              <div>
-                <p class="text-body2 text-grey mb-2">Total Orders</p>
-                <h2 class="text-h4 font-weight-bold">{{ totalOrders.toLocaleString() }}</h2>
-                <p
-                  class="text-body2 mt-2"
-                  :class="ordersChange >= 0 ? 'text-success' : 'text-error'"
-                >
-                  <v-icon size="16">{{
-                    ordersChange >= 0 ? 'mdi-trending-up' : 'mdi-trending-down'
-                  }}</v-icon>
-                  {{ Math.abs(ordersChange) }}% from last month
-                </p>
-              </div>
-              <v-avatar color="success" icon="mdi-shopping-cart" size="56"></v-avatar>
-            </div>
-          </v-card-text>
-        </v-card>
+        <MetricCard
+          title="Total Weight (Kg)"
+          :value="goodsStats.totalWeight.toLocaleString()"
+          icon="mdi-weight-kilogram"
+          icon-color="info"
+        />
       </v-col>
 
       <v-col cols="12" sm="6" md="3">
-        <v-card class="metric-card" elevation="0" rounded="lg">
-          <v-card-text class="pa-6">
-            <div class="d-flex justify-space-between align-start">
-              <div>
-                <p class="text-body2 text-grey mb-2">Total Products</p>
-                <h2 class="text-h4 font-weight-bold">{{ totalProducts }}</h2>
-                <p
-                  class="text-body2 mt-2"
-                  :class="productsChange >= 0 ? 'text-success' : 'text-error'"
-                >
-                  <v-icon size="16">{{
-                    productsChange >= 0 ? 'mdi-trending-up' : 'mdi-trending-down'
-                  }}</v-icon>
-                  {{ Math.abs(productsChange) }}% from last month
-                </p>
-              </div>
-              <v-avatar color="info" icon="mdi-package-variant" size="56"></v-avatar>
-            </div>
-          </v-card-text>
-        </v-card>
+        <MetricCard
+          title="Average Supplier"
+          :value="goodsStats.avgSuppliers"
+          icon="mdi-store-outline"
+          icon-color="warning"
+        />
       </v-col>
 
       <v-col cols="12" sm="6" md="3">
-        <v-card class="metric-card" elevation="0" rounded="lg">
-          <v-card-text class="pa-6">
-            <div class="d-flex justify-space-between align-start">
-              <div>
-                <p class="text-body2 text-grey mb-2">Total Customers</p>
-                <h2 class="text-h4 font-weight-bold">{{ totalCustomers }}</h2>
-                <p
-                  class="text-body2 mt-2"
-                  :class="customersChange >= 0 ? 'text-success' : 'text-error'"
-                >
-                  <v-icon size="16">{{
-                    customersChange >= 0 ? 'mdi-trending-up' : 'mdi-trending-down'
-                  }}</v-icon>
-                  {{ Math.abs(customersChange) }}% from last month
-                </p>
-              </div>
-              <v-avatar color="warning" icon="mdi-account-multiple" size="56"></v-avatar>
-            </div>
-          </v-card-text>
-        </v-card>
+        <MetricCard
+          title="Total Users"
+          :value="userStats.totalUsers"
+          icon="mdi-account-multiple"
+          icon-color="primary"
+        />
       </v-col>
     </v-row>
 
@@ -188,6 +132,7 @@ import Chart from 'chart.js/auto'
 import { getDoc, doc, getDocs, collection } from 'firebase/firestore'
 import { db, auth } from '@/plugins/firebase'
 import PageHeader from '@/component/common/PageHeader.vue'
+import MetricCard from '@/component/common/MetricCard.vue'
 import PeriodSelector from '@/component/common/PeriodSelector.vue'
 import StatRow from '@/component/common/StatRow.vue'
 
@@ -198,17 +143,6 @@ const chartLabels = ref<string[]>([])
 const chartSeries = ref<number[]>([])
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let chartInstance: any = null
-
-// Metrics
-const totalRevenue = ref(45231)
-const totalOrders = ref(1524)
-const totalProducts = ref(328)
-const totalCustomers = ref(892)
-
-const revenueChange = ref(12.5)
-const ordersChange = ref(8.2)
-const productsChange = ref(-2.4)
-const customersChange = ref(15.3)
 
 // Top Products
 const topProducts = ref([
@@ -250,10 +184,6 @@ const userStats = ref({
   activeUsers: 0,
   inactiveUsers: 0,
 })
-
-const formatCurrency = (value: number) => {
-  return '$' + value.toLocaleString()
-}
 
 const loadUserName = async () => {
   try {

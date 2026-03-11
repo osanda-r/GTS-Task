@@ -8,8 +8,8 @@
       </template>
     </PageHeader>
 
-    <v-card class="table-card" elevation="2" rounded="lg">
-      <v-card-text class="px-0 py-0">
+    <AppTableCard card-class="table-card">
+      <template #toolbar>
         <UserTableToolbar
           :search="search"
           :record-count="users.length"
@@ -19,29 +19,79 @@
           @export="handleExport"
           @import="handleImport"
         />
+      </template>
 
-        <v-data-table
+      <template #table>
+        <AppDataTable
           :headers="headers"
           :items="filteredUsers"
           :loading="loading"
           :items-per-page="10"
           item-value="id"
-          class="users-table"
+          table-class="users-table"
           no-data-text="No users found"
         >
+          <template v-slot:[`mobile-card`]="{ item }">
+            <v-card class="mobile-user-card mb-3" variant="outlined">
+              <v-card-text>
+                <div class="d-flex align-center justify-space-between ga-3 mb-3">
+                  <div class="d-flex align-center ga-3">
+                    <v-avatar color="primary" size="40">
+                      <span class="text-white">{{ asUserRecord(item).initials }}</span>
+                    </v-avatar>
+                    <div>
+                      <div class="text-subtitle-1 font-weight-bold">
+                        {{ asUserRecord(item).name }}
+                      </div>
+                      <div class="text-body-2 text-medium-emphasis">
+                        {{ asUserRecord(item).email }}
+                      </div>
+                    </div>
+                  </div>
+                  <v-chip
+                    :color="asUserRecord(item).status === 'Active' ? 'success' : 'error'"
+                    size="small"
+                    variant="flat"
+                  >
+                    {{ asUserRecord(item).status }}
+                  </v-chip>
+                </div>
+
+                <div class="mobile-user-meta mb-3">
+                  <div>
+                    <div class="text-caption text-medium-emphasis">Role</div>
+                    <div class="text-body-2">{{ asUserRecord(item).role }}</div>
+                  </div>
+              
+                </div>
+
+                <div class="pt-2 border-top-thin d-flex justify-end">
+                  <UserActionButtons
+                    :can-view="true"
+                    :can-edit="true"
+                    :can-delete="true"
+                    @view="viewUser(asUserRecord(item))"
+                    @edit="editUser(asUserRecord(item))"
+                    @delete="deleteUser()"
+                  />
+                </div>
+              </v-card-text>
+            </v-card>
+          </template>
+
           <template v-slot:[`item.avatar`]="{ item }">
             <v-avatar color="primary" size="32">
-              <span class="text-white">{{ item.initials }}</span>
+              <span class="text-white">{{ asUserRecord(item).initials }}</span>
             </v-avatar>
           </template>
 
           <template v-slot:[`item.status`]="{ item }">
             <v-chip
-              :color="item.status === 'Active' ? 'success' : 'error'"
+              :color="asUserRecord(item).status === 'Active' ? 'success' : 'error'"
               size="small"
               variant="flat"
             >
-              {{ item.status }}
+              {{ asUserRecord(item).status }}
             </v-chip>
           </template>
 
@@ -50,14 +100,14 @@
               :can-view="true"
               :can-edit="true"
               :can-delete="true"
-              @view="viewUser(item)"
-              @edit="editUser(item)"
+              @view="viewUser(asUserRecord(item))"
+              @edit="editUser(asUserRecord(item))"
               @delete="deleteUser()"
             />
           </template>
-        </v-data-table>
-      </v-card-text>
-    </v-card>
+        </AppDataTable>
+      </template>
+    </AppTableCard>
 
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
       {{ snackbar.text }}
@@ -71,6 +121,8 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/plugins/firebase'
 import router from '@/router'
 import PageHeader from '@/component/common/PageHeader.vue'
+import AppDataTable from '@/component/common/AppDataTable.vue'
+import AppTableCard from '@/component/common/AppTableCard.vue'
 import UserTableToolbar from '@/component/users/UserTableToolbar.vue'
 import UserActionButtons from '@/component/users/UserActionButtons.vue'
 import type { Timestamp } from 'firebase/firestore'
@@ -83,9 +135,10 @@ interface UserRecord {
   email: string
   role: string
   status: string
-  lastLogin?: string
   createdAt?: Timestamp | string
 }
+
+const asUserRecord = (value: unknown): UserRecord => value as UserRecord
 
 const search = ref('')
 const loading = ref(false)
@@ -172,7 +225,6 @@ const loadUsers = async () => {
         email: data.email || '',
         role: data.role || 'User',
         status: data.status || 'Active',
-        lastLogin: data.lastLogin || '-',
         createdAt: data.createdAt,
       }
     })
@@ -212,5 +264,22 @@ onMounted(() => {
 
 .users-table :deep(tbody tr:hover) {
   background: #f9f9f9;
+}
+
+.mobile-user-card {
+  background: #fff;
+  border-color: #d8dee3;
+}
+
+.mobile-user-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .mobile-user-meta {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

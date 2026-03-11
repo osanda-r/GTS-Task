@@ -64,8 +64,8 @@
       </v-card-text>
     </v-card>
 
-    <v-card v-if="canView" class="table-card" elevation="2" rounded="lg">
-      <v-card-text class="px-0 py-0">
+    <AppTableCard v-if="canView" card-class="table-card">
+      <template #toolbar>
         <GoodsTableToolbar
           :search="search"
           :record-count="filteredGoods.length"
@@ -76,29 +76,91 @@
           @export="handleExport"
           @import="handleImport"
         />
+      </template>
 
-        <v-data-table
+      <template #table>
+        <AppDataTable
           :headers="headers"
           :items="filteredGoods"
           :loading="isLoading"
           :items-per-page="10"
           item-value="id"
-          class="goods-table"
+          table-class="goods-table"
           no-data-text="No records found"
         >
-          <template v-if="canShowActions" v-slot:[`item.actions`]="{ item }">
+          <template v-slot:[`mobile-card`]="{ item }">
+            <v-card class="mobile-goods-card mb-3" variant="outlined">
+              <v-card-text>
+                <div class="d-flex justify-space-between align-start mb-3 ga-3">
+                  <div>
+                    <div class="text-subtitle-1 font-weight-bold">
+                      {{ asGoodsRecord(item).grn }}
+                    </div>
+                    <div class="text-body-2 text-medium-emphasis">
+                      {{ asGoodsRecord(item).createdAtDisplay }}
+                    </div>
+                  </div>
+                  <v-chip color="success" variant="tonal">{{
+                    asGoodsRecord(item).type || 'N/A'
+                  }}</v-chip>
+                </div>
+
+                <div class="mobile-detail-grid">
+                  <div>
+                    <div class="text-caption text-medium-emphasis">Color</div>
+                    <div class="text-body-2">{{ asGoodsRecord(item).color || '-' }}</div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">Supplier</div>
+                    <div class="text-body-2">{{ asGoodsRecord(item).supplier || '-' }}</div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">Gross Weight</div>
+                    <div class="text-body-2">{{ asGoodsRecord(item).grossWeight }} Kg</div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">Actual Weight</div>
+                    <div class="text-body-2">{{ asGoodsRecord(item).actualWeight }} Kg</div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">Moisture</div>
+                    <div class="text-body-2">{{ asGoodsRecord(item).moisture }} %</div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-medium-emphasis">Remark</div>
+                    <div class="text-body-2">{{ asGoodsRecord(item).remark || '-' }}</div>
+                  </div>
+                </div>
+
+                <div v-if="canShowActions" class="mt-3 pt-2 border-top-thin">
+                  <GoodsActionButtons
+                    :show-view="canView && !hasOnlyViewPermission"
+                    :can-edit="canEdit"
+                    :can-delete="canDelete"
+                    :vertical="false"
+                    @view="openViewDialog(asGoodsRecord(item))"
+                    @edit="openEditDialog(asGoodsRecord(item))"
+                    @delete="deleteRecord(asGoodsRecord(item).id)"
+                  />
+                </div>
+              </v-card-text>
+            </v-card>
+          </template>
+
+          <template v-slot:[`item.actions`]="{ item }">
             <GoodsActionButtons
+              v-if="canShowActions"
               :show-view="canView && !hasOnlyViewPermission"
               :can-edit="canEdit"
               :can-delete="canDelete"
-              @view="openViewDialog(item)"
-              @edit="openEditDialog(item)"
-              @delete="deleteRecord(item.id)"
+              @view="openViewDialog(asGoodsRecord(item))"
+              @edit="openEditDialog(asGoodsRecord(item))"
+              @delete="deleteRecord(asGoodsRecord(item).id)"
             />
           </template>
-        </v-data-table>
-      </v-card-text>
-    </v-card>
+        </AppDataTable>
+      </template>
+    </AppTableCard>
 
     <v-card v-else class="table-card" elevation="2" rounded="lg">
       <v-card-text class="py-8 text-center text-medium-emphasis">
@@ -154,6 +216,8 @@ import type { FirebaseError } from 'firebase/app'
 import { auth, db } from '@/plugins/firebase'
 import PageHeader from '@/component/common/PageHeader.vue'
 import FormField from '@/component/common/FormField.vue'
+import AppDataTable from '@/component/common/AppDataTable.vue'
+import AppTableCard from '@/component/common/AppTableCard.vue'
 import GoodsActionButtons from '@/component/goods/GoodsActionButtons.vue'
 import GoodsViewDialog from '@/component/goods/GoodsViewDialog.vue'
 import GoodsEditDialog from '@/component/goods/GoodsEditDialog.vue'
@@ -173,6 +237,8 @@ type GoodsRecord = {
   createdAt: Timestamp | string | null
   createdAtDisplay: string
 }
+
+const asGoodsRecord = (value: unknown): GoodsRecord => value as GoodsRecord
 
 const goodsCollection = collection(db, 'goodsReceived')
 
@@ -686,6 +752,23 @@ onBeforeUnmount(() => {
   .search-input {
     min-width: 100%;
     margin-right: 0;
+  }
+}
+
+.mobile-goods-card {
+  background: #fff;
+  border-color: #d8dee3;
+}
+
+.mobile-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .mobile-detail-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
