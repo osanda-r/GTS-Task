@@ -6,7 +6,9 @@
       container-class="mb-6"
     >
       <template #actions>
-        <v-btn color="success" prepend-icon="mdi-plus" size="large">ADD PRODUCT</v-btn>
+        <v-btn color="success" prepend-icon="mdi-plus" size="large" @click="goToAddProduct">
+          ADD PRODUCT
+        </v-btn>
       </template>
     </PageHeader>
 
@@ -67,20 +69,23 @@
         <v-card elevation="0" rounded="lg" class="products-card">
           <v-card-text class="pa-6">
             <h3 class="text-h6 font-weight-bold mb-4">Top Products</h3>
-            <div class="products-list">
+            <div v-if="topProducts.length" class="products-list">
               <div v-for="(product, index) in topProducts" :key="index" class="product-item mb-4">
                 <div class="d-flex gap-3 align-start">
-                  <v-avatar :color="product.color" size="48" icon="mdi-leaf"></v-avatar>
+                  <v-avatar :color="product.color" size="48" :icon="product.icon"></v-avatar>
                   <div class="flex-grow-1">
                     <h4 class="text-body1 font-weight-bold">{{ product.name }}</h4>
                     <p class="text-body2 text-grey mb-1">
                       {{ product.units.toLocaleString() }} units sold
                     </p>
-                    <p class="text-body2 text-success font-weight-bold">{{ product.price }}</p>
+                    <p class="text-body2 text-success font-weight-bold">
+                      {{ formatProductPrice(product.price) }}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
+            <p v-else class="text-body2 text-medium-emphasis">No products added yet.</p>
           </v-card-text>
         </v-card>
       </v-col>
@@ -129,13 +134,34 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount, onMounted, watch } from 'vue'
 import Chart from 'chart.js/auto'
-import { getDoc, doc, getDocs, collection } from 'firebase/firestore'
+import {
+  getDoc,
+  doc,
+  getDocs,
+  collection,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+} from 'firebase/firestore'
+import { useRouter } from 'vue-router'
 import { db, auth } from '@/plugins/firebase'
 import PageHeader from '@/component/common/PageHeader.vue'
 import MetricCard from '@/component/common/MetricCard.vue'
 import PeriodSelector from '@/component/common/PeriodSelector.vue'
 import StatRow from '@/component/common/StatRow.vue'
+import { getProductIconByType, normalizeProductType } from '@/helpers/utils/productIconUtils'
 
+type TopProduct = {
+  name: string
+  type: string
+  units: number
+  price: number
+  color: string
+  icon: string
+}
+
+const router = useRouter()
 const userName = ref('John')
 const goodsChart = ref<HTMLCanvasElement | null>(null)
 const chartPeriod = ref<'WEEK' | 'MONTH' | 'YEAR'>('MONTH')
@@ -143,34 +169,10 @@ const chartLabels = ref<string[]>([])
 const chartSeries = ref<number[]>([])
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let chartInstance: any = null
+let unsubscribeTopProducts: (() => void) | null = null
 
 // Top Products
-const topProducts = ref([
-  {
-    name: 'Organic Green Tea',
-    units: 234,
-    price: '$4',
-    color: 'success',
-  },
-  {
-    name: 'Fresh Vegetables Pack',
-    units: 189,
-    price: '$3',
-    color: 'info',
-  },
-  {
-    name: 'Organic Honey',
-    units: 156,
-    price: '$3',
-    color: 'warning',
-  },
-  {
-    name: 'Brown Rice',
-    units: 142,
-    price: '$2',
-    color: 'error',
-  },
-])
+const topProducts = ref<TopProduct[]>([])
 
 // Statistics
 const goodsStats = ref({
@@ -184,6 +186,14 @@ const userStats = ref({
   activeUsers: 0,
   inactiveUsers: 0,
 })
+
+const goToAddProduct = () => {
+  router.push({ name: 'AddProduct' })
+}
+
+const formatProductPrice = (price: number) => {
+  return `Rs:${price.toLocaleString()}`
+}
 
 const loadUserName = async () => {
   try {
@@ -249,6 +259,37 @@ const loadUserStats = async () => {
     }
   } catch (error) {
     console.error('Failed to load user stats:', error)
+  }
+}
+
+const subscribeTopProducts = () => {
+  try {
+    const productsCollection = collection(db, 'products')
+    const productsQuery = query(productsCollection, orderBy('createdAt', 'desc'), limit(4))
+
+    unsubscribeTopProducts = onSnapshot(
+      productsQuery,
+      (snapshot) => {
+        topProducts.value = snapshot.docs.map((row) => {
+          const data = row.data()
+          return {
+            name: String(data.name ?? 'Unnamed Product'),
+            type: normalizeProductType(String(data.type ?? 'other')),
+            units: Number(data.units ?? 0),
+            price: Number(data.price ?? 0),
+            color: String(data.color ?? 'success'),
+            icon: String(data.icon ?? getProductIconByType(String(data.type ?? 'other'))),
+          }
+        })
+      },
+      (error) => {
+        console.error('Failed to subscribe top products:', error)
+        topProducts.value = []
+      },
+    )
+  } catch (error) {
+    console.error('Failed to initialize top products subscription:', error)
+    topProducts.value = []
   }
 }
 
@@ -426,6 +467,7 @@ onMounted(async () => {
   await loadUserName()
   await loadGoodsStats()
   await loadUserStats()
+  subscribeTopProducts()
   await loadGoodsChartData()
   initGoodsChart()
 })
@@ -434,6 +476,11 @@ onBeforeUnmount(() => {
   if (chartInstance) {
     chartInstance.destroy()
     chartInstance = null
+  }
+
+  if (unsubscribeTopProducts) {
+    unsubscribeTopProducts()
+    unsubscribeTopProducts = null
   }
 })
 </script>

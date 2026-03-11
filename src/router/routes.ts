@@ -47,6 +47,14 @@ const routes = [
         },
       },
       {
+        path: 'products/add',
+        name: 'AddProduct',
+        component: () => import('@/views/product/AddProductView.vue'),
+        meta: {
+          title: 'Add Product',
+        },
+      },
+      {
         path: 'users',
         name: 'Users',
         component: () => import('@/views/users/UsersView.vue'),

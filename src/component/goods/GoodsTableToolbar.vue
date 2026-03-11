@@ -1,16 +1,16 @@
 <template>
   <div class="table-head px-6 py-4 d-flex flex-wrap align-center">
     <div class="d-flex align-center mr-6 mb-3 mb-md-0">
-      <v-icon icon="mdi-cube-outline" size="28" class="mr-3"></v-icon>
-      <h3 class="text-h5 font-weight-bold mr-3">Goods Received</h3>
-      <v-chip color="success" variant="tonal">{{ recordCount }} Records</v-chip>
+      <v-icon :icon="icon" size="28" class="mr-3"></v-icon>
+      <h3 class="text-h5 font-weight-bold mr-3">{{ title }}</h3>
+      <v-chip :color="chipColor" variant="tonal">{{ recordCount }} Records</v-chip>
     </div>
 
     <v-spacer></v-spacer>
 
     <v-text-field
       :model-value="search"
-      placeholder="Search goods received..."
+      :placeholder="searchPlaceholder"
       prepend-inner-icon="mdi-magnify"
       hide-details
       variant="outlined"
@@ -32,6 +32,7 @@
         Refresh
       </v-btn>
       <v-btn
+        v-if="showExportImport"
         color="success"
         variant="tonal"
         rounded="pill"
@@ -41,6 +42,7 @@
         Export
       </v-btn>
       <v-btn
+        v-if="showExportImport"
         color="success"
         variant="tonal"
         rounded="pill"
@@ -54,12 +56,26 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  search: string
-  recordCount: number
-  isLoading: boolean
-  hasActionPermission: boolean
-}>()
+withDefaults(
+  defineProps<{
+    search: string
+    recordCount: number
+    isLoading: boolean
+    hasActionPermission: boolean
+    title?: string
+    icon?: string
+    chipColor?: string
+    searchPlaceholder?: string
+    showExportImport?: boolean
+  }>(),
+  {
+    title: 'Goods Received',
+    icon: 'mdi-cube-outline',
+    chipColor: 'success',
+    searchPlaceholder: 'Search goods received...',
+    showExportImport: true,
+  },
+)
 
 defineEmits<{
   'update:search': [value: string]
