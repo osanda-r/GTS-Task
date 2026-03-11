@@ -52,11 +52,28 @@
             <v-select
               v-model="form.color"
               :items="colorOptions"
+              item-title="title"
+              item-value="value"
               variant="outlined"
               density="comfortable"
               hide-details
               rounded="lg"
-            ></v-select>
+            >
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :title="item.raw.title">
+                  <template #prepend>
+                    <span class="color-dot" :style="{ backgroundColor: item.raw.hex }"></span>
+                  </template>
+                </v-list-item>
+              </template>
+
+              <template #selection="{ item }">
+                <div class="d-flex align-center ga-2">
+                  <span class="color-dot" :style="{ backgroundColor: item.raw.hex }"></span>
+                  <span>{{ item.raw.title }}</span>
+                </div>
+              </template>
+            </v-select>
           </v-col>
 
           <v-col cols="12" md="6">
@@ -119,6 +136,16 @@
             <span>RS:{{ asProduct(item).price.toLocaleString() }}</span>
           </template>
 
+          <template v-slot:[`item.color`]="{ item }">
+            <div class="d-flex align-center ga-2">
+              <span
+                class="color-dot"
+                :style="{ backgroundColor: getColorHexByValue(asProduct(item).color) }"
+              ></span>
+              <span>{{ getColorLabelByValue(asProduct(item).color) }}</span>
+            </div>
+          </template>
+
           <template v-slot:[`item.actions`]="{ item }">
             <GoodsActionButtons
               :show-view="false"
@@ -176,6 +203,12 @@ type ProductRecord = {
   icon: string
 }
 
+type ColorOption = {
+  title: string
+  value: string
+  hex: string
+}
+
 const router = useRouter()
 const productsCollection = collection(db, 'products')
 
@@ -188,7 +221,24 @@ const headers = [
   { title: 'Actions', key: 'actions', sortable: false },
 ]
 
-const colorOptions = ['success', 'info', 'warning', 'error', 'primary', 'secondary']
+const colorOptions: ColorOption[] = [
+  { title: 'Green', value: 'success', hex: '#2e7d32' },
+  { title: 'Blue', value: 'info', hex: '#0288d1' },
+  { title: 'Amber', value: 'warning', hex: '#f9a825' },
+  { title: 'Red', value: 'error', hex: '#d32f2f' },
+  { title: 'Indigo', value: 'primary', hex: '#3949ab' },
+  { title: 'Teal', value: 'secondary', hex: '#00897b' },
+]
+
+const getColorLabelByValue = (value: string) => {
+  const match = colorOptions.find((option) => option.value === value)
+  return match?.title ?? value
+}
+
+const getColorHexByValue = (value: string) => {
+  const match = colorOptions.find((option) => option.value === value)
+  return match?.hex ?? '#9e9e9e'
+}
 
 const form = ref({
   name: '',
@@ -407,5 +457,13 @@ onMounted(() => {
   color: #37474f;
   font-size: 15px;
   font-weight: 600;
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, 0.18);
 }
 </style>

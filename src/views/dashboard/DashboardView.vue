@@ -52,80 +52,22 @@
     </v-row>
 
     <!-- Charts Section -->
-    <v-row class="mb-6">
-      <v-col cols="12" md="8">
-        <v-card elevation="0" rounded="lg" class="chart-card">
-          <v-card-text class="pa-6">
-            <div class="d-flex justify-space-between align-center mb-4">
-              <h3 class="text-h6 font-weight-bold">Goods Received Overview</h3>
-              <PeriodSelector v-model="chartPeriod" />
-            </div>
-            <canvas ref="goodsChart" height="80"></canvas>
-          </v-card-text>
-        </v-card>
-      </v-col>
-
-      <v-col cols="12" md="4">
-        <v-card elevation="0" rounded="lg" class="products-card">
-          <v-card-text class="pa-6">
-            <h3 class="text-h6 font-weight-bold mb-4">Top Products</h3>
-            <div v-if="topProducts.length" class="products-list">
-              <div v-for="(product, index) in topProducts" :key="index" class="product-item mb-4">
-                <div class="d-flex gap-3 align-start">
-                  <v-avatar :color="product.color" size="48" :icon="product.icon"></v-avatar>
-                  <div class="flex-grow-1">
-                    <h4 class="text-body1 font-weight-bold">{{ product.name }}</h4>
-                    <p class="text-body2 text-grey mb-1">
-                      {{ product.units.toLocaleString() }} units sold
-                    </p>
-                    <p class="text-body2 text-success font-weight-bold">
-                      {{ formatProductPrice(product.price) }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p v-else class="text-body2 text-medium-emphasis">No products added yet.</p>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+    <DashboardChartsSection
+      :period="chartPeriod"
+      :labels="chartLabels"
+      :series="chartSeries"
+      :products="topProducts"
+      @update:period="chartPeriod = $event"
+    />
 
     <!-- Goods Received Stats -->
     <v-row>
       <v-col cols="12" md="6">
-        <v-card elevation="0" rounded="lg">
-          <v-card-text class="pa-6">
-            <h3 class="text-h6 font-weight-bold mb-4">Goods Received Statistics</h3>
-            <StatRow label="Total Shipments" :value="goodsStats.totalShipments" with-border />
-            <StatRow
-              label="Total Weight (Kg)"
-              :value="goodsStats.totalWeight.toLocaleString()"
-              with-border
-            />
-            <StatRow label="Average Supplier" :value="goodsStats.avgSuppliers" />
-          </v-card-text>
-        </v-card>
+        <GoodsReceivedStatsCard :stats="goodsStats" />
       </v-col>
 
       <v-col cols="12" md="6">
-        <v-card elevation="0" rounded="lg">
-          <v-card-text class="pa-6">
-            <h3 class="text-h6 font-weight-bold mb-4">User Activity</h3>
-            <StatRow label="Total Users" :value="userStats.totalUsers" with-border />
-            <StatRow
-              label="Active Users"
-              :value="userStats.activeUsers"
-              value-class="text-success"
-              with-border
-            />
-            <StatRow
-              label="Inactive Users"
-              :value="userStats.inactiveUsers"
-              value-class="text-error"
-            />
-          </v-card-text>
-        </v-card>
+        <UserActivityCard :stats="userStats" />
       </v-col>
     </v-row>
   </v-container>
@@ -133,7 +75,6 @@
 
 <script setup lang="ts">
 import { ref, onBeforeUnmount, onMounted, watch } from 'vue'
-import Chart from 'chart.js/auto'
 import {
   getDoc,
   doc,
@@ -148,8 +89,9 @@ import { useRouter } from 'vue-router'
 import { db, auth } from '@/plugins/firebase'
 import PageHeader from '@/component/common/PageHeader.vue'
 import MetricCard from '@/component/common/MetricCard.vue'
-import PeriodSelector from '@/component/common/PeriodSelector.vue'
-import StatRow from '@/component/common/StatRow.vue'
+import DashboardChartsSection from '@/component/dashboard/DashboardChartsSection.vue'
+import GoodsReceivedStatsCard from '@/component/dashboard/GoodsReceivedStatsCard.vue'
+import UserActivityCard from '@/component/dashboard/UserActivityCard.vue'
 import { getProductIconByType, normalizeProductType } from '@/helpers/utils/productIconUtils'
 
 type TopProduct = {
@@ -163,12 +105,9 @@ type TopProduct = {
 
 const router = useRouter()
 const userName = ref('John')
-const goodsChart = ref<HTMLCanvasElement | null>(null)
 const chartPeriod = ref<'WEEK' | 'MONTH' | 'YEAR'>('MONTH')
 const chartLabels = ref<string[]>([])
 const chartSeries = ref<number[]>([])
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let chartInstance: any = null
 let unsubscribeTopProducts: (() => void) | null = null
 
 // Top Products
@@ -189,10 +128,6 @@ const userStats = ref({
 
 const goToAddProduct = () => {
   router.push({ name: 'AddProduct' })
-}
-
-const formatProductPrice = (price: number) => {
-  return `Rs:${price.toLocaleString()}`
 }
 
 const loadUserName = async () => {
@@ -408,59 +343,8 @@ const loadGoodsChartData = async () => {
   }
 }
 
-const initGoodsChart = () => {
-  if (!goodsChart.value) {
-    return
-  }
-
-  // Destroy existing chart
-  if (chartInstance) {
-    chartInstance.destroy()
-  }
-
-  const ctx = goodsChart.value.getContext('2d')
-  if (!ctx) return
-
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: chartLabels.value,
-      datasets: [
-        {
-          label: 'Shipments Received',
-          data: chartSeries.value,
-          fill: true,
-          borderColor: '#00bcd4',
-          backgroundColor: 'rgba(0, 188, 212, 0.1)',
-          borderWidth: 3,
-          tension: 0.4,
-          pointRadius: 5,
-          pointBackgroundColor: '#00bcd4',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: {
-        legend: {
-          display: true,
-          position: 'top' as const,
-        },
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-        },
-      },
-    },
-  })
-}
-
 watch(chartPeriod, () => {
-  loadGoodsChartData().then(() => initGoodsChart())
+  loadGoodsChartData()
 })
 
 onMounted(async () => {
@@ -469,15 +353,9 @@ onMounted(async () => {
   await loadUserStats()
   subscribeTopProducts()
   await loadGoodsChartData()
-  initGoodsChart()
 })
 
 onBeforeUnmount(() => {
-  if (chartInstance) {
-    chartInstance.destroy()
-    chartInstance = null
-  }
-
   if (unsubscribeTopProducts) {
     unsubscribeTopProducts()
     unsubscribeTopProducts = null
@@ -510,19 +388,6 @@ onBeforeUnmount(() => {
   border: 1px solid #e0e0e0;
 }
 
-.products-card {
-  background: #fff !important;
-  border: 1px solid #e0e0e0;
-}
-
-.product-item {
-  padding-bottom: 16px;
-}
-
-.product-item:not(:last-child) {
-  border-bottom: 1px solid #e0e0e0;
-}
-
 .stat-item {
   border-color: #e0e0e0 !important;
 }
@@ -531,20 +396,7 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #e0e0e0;
 }
 
-.text-grey {
-  color: #999;
-}
-
-.products-list {
-  max-height: 450px;
-  overflow-y: auto;
-}
-
 .gap-2 {
   gap: 8px;
-}
-
-.gap-3 {
-  gap: 12px;
 }
 </style>
