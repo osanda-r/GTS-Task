@@ -20,101 +20,14 @@
     <!-- Right Section: Actions and User Menu -->
     <div class="d-flex align-center gap-1">
       <!-- Notifications -->
-      <v-menu
-        v-model="isNotificationMenuOpen"
-        location="bottom end"
-        :close-on-content-click="false"
-      >
-        <template v-slot:activator="{ props }">
-          <v-btn v-bind="props" icon variant="text" @click="onNotificationMenuOpen">
-            <v-badge
-              :model-value="unreadCount > 0"
-              :content="unreadCount > 99 ? '99+' : unreadCount"
-              color="error"
-              offset-x="8"
-              offset-y="8"
-            >
-              <v-icon>mdi-bell-outline</v-icon>
-            </v-badge>
-          </v-btn>
-        </template>
-
-        <v-card min-width="360" max-width="420" class="notification-card">
-          <v-card-title class="d-flex align-center justify-space-between py-3">
-            <span class="text-subtitle-1 font-weight-bold">Notifications</span>
-            <div class="d-flex align-center ga-1">
-              <v-btn
-                icon="mdi-refresh"
-                size="small"
-                variant="text"
-                :loading="isLoadingNotifications"
-                @click="loadNotifications"
-              ></v-btn>
-              <v-btn
-                variant="text"
-                size="small"
-                color="primary"
-                :disabled="unreadCount === 0"
-                @click="markAllAsRead"
-              >
-                Mark all read
-              </v-btn>
-            </div>
-          </v-card-title>
-
-          <v-divider></v-divider>
-
-          <v-card-text class="pa-0">
-            <div v-if="isLoadingNotifications" class="pa-4 text-center text-medium-emphasis">
-              Loading notifications...
-            </div>
-
-            <div
-              v-else-if="notifications.length === 0"
-              class="pa-4 text-center text-medium-emphasis"
-            >
-              No notifications yet.
-            </div>
-
-            <v-list v-else lines="two" density="comfortable">
-              <v-list-item
-                v-for="note in notifications"
-                :key="note.id"
-                class="notification-item"
-                @click="openNotification(note)"
-              >
-                <template v-slot:prepend>
-                  <v-avatar
-                    size="32"
-                    :color="note.type === 'goods' ? 'success' : 'primary'"
-                    variant="tonal"
-                  >
-                    <v-icon size="18">{{
-                      note.type === 'goods' ? 'mdi-truck-delivery-outline' : 'mdi-account-plus'
-                    }}</v-icon>
-                  </v-avatar>
-                </template>
-
-                <v-list-item-title class="text-body-2 font-weight-medium d-flex align-center">
-                  {{ note.title }}
-                  <v-chip
-                    v-if="note.isUnread"
-                    size="x-small"
-                    color="error"
-                    variant="flat"
-                    class="ml-2"
-                  >
-                    New
-                  </v-chip>
-                </v-list-item-title>
-                <v-list-item-subtitle class="text-caption">
-                  {{ note.message }} • {{ note.timeLabel }}
-                </v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
-          </v-card-text>
-        </v-card>
-      </v-menu>
+      <NotificationsDropdown
+        :is-menu-open="isNotificationMenuOpen"
+        :notifications="notifications"
+        :is-loading="isLoadingNotifications"
+        @update:is-menu-open="isNotificationMenuOpen = $event"
+        @refresh="loadNotifications"
+        @mark-all-read="markAllAsRead"
+      />
 
       <!-- User Profile Menu -->
       <v-menu offset-y>
@@ -158,11 +71,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { collection, getDocs, limit, orderBy, query, Timestamp } from 'firebase/firestore'
+import {
+  collection,
+  getDocs,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  Timestamp,
+} from 'firebase/firestore'
 import useAuth from '@/composables/useAuth'
 import { auth, db } from '@/plugins/firebase'
+import NotificationsDropdown from '@/component/NotificationsDropdown.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -185,14 +107,13 @@ const notifications = ref<NotificationItem[]>([])
 const isLoadingNotifications = ref(false)
 const isNotificationMenuOpen = ref(false)
 const lastReadAtMs = ref(0)
+let unsubscribeGoods: (() => void) | null = null
+let unsubscribeUsers: (() => void) | null = null
+let unsubscribeProducts: (() => void) | null = null
 
 const notificationStorageKey = computed(() => {
   const uid = auth.currentUser?.uid || 'guest'
   return `gts_last_read_notifications_${uid}`
-})
-
-const unreadCount = computed(() => {
-  return notifications.value.filter((n) => n.isUnread).length
 })
 
 // Get current page title from route meta
@@ -252,6 +173,94 @@ const mapNotificationsWithUnread = (
     ...item,
     isUnread: item.createdAtMs > lastReadAtMs.value,
   }))
+}
+
+const mergeAndUpdateNotifications = (
+  goodsDocs: Array<Omit<NotificationItem, 'isUnread'>>,
+  userDocs: Array<Omit<NotificationItem, 'isUnread'>>,
+) => {
+  const merged = [...goodsDocs, ...userDocs]
+    .sort((a, b) => b.createdAtMs - a.createdAtMs)
+    .slice(0, 10)
+  notifications.value = mapNotificationsWithUnread(merged)
+}
+
+const subscribeToNotifications = () => {
+  try {
+    // Subscribe to goods received
+    const goodsQuery = query(
+      collection(db, 'goodsReceived'),
+      orderBy('createdAt', 'desc'),
+      limit(5),
+    )
+    unsubscribeGoods = onSnapshot(
+      goodsQuery,
+      (snapshot) => {
+        const goodsNotifications: Array<Omit<NotificationItem, 'isUnread'>> = snapshot.docs.map(
+          (row) => {
+            const data = row.data()
+            const createdAtMs = toMillis(data.createdAt)
+            const grn = String(data.grn ?? 'N/A')
+
+            return {
+              id: `goods_${row.id}`,
+              type: 'goods',
+              title: 'New Goods Received',
+              message: `GRN: ${grn}`,
+              createdAtMs,
+              timeLabel: toRelativeTime(createdAtMs),
+              routeName: 'GoodsReceived',
+            }
+          },
+        )
+
+        const currentUserNotifications = notifications.value.filter((n) => n.type === 'user')
+        mergeAndUpdateNotifications(
+          goodsNotifications,
+          currentUserNotifications as Array<Omit<NotificationItem, 'isUnread'>>,
+        )
+      },
+      (error) => {
+        console.error('Failed to subscribe to goods notifications:', error)
+      },
+    )
+
+    // Subscribe to users
+    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(5))
+    unsubscribeUsers = onSnapshot(
+      usersQuery,
+      (snapshot) => {
+        const userNotifications: Array<Omit<NotificationItem, 'isUnread'>> = snapshot.docs.map(
+          (row) => {
+            const data = row.data()
+            const createdAtMs = toMillis(data.createdAt)
+            const name = String(data.name ?? data.email ?? 'User')
+
+            return {
+              id: `user_${row.id}`,
+              type: 'user',
+              title: 'New User Added',
+              message: name,
+              createdAtMs,
+              timeLabel: toRelativeTime(createdAtMs),
+              routeName: 'Users',
+            }
+          },
+        )
+
+        const currentGoodsNotifications = notifications.value.filter((n) => n.type === 'goods')
+        mergeAndUpdateNotifications(
+          currentGoodsNotifications as Array<Omit<NotificationItem, 'isUnread'>>,
+          userNotifications,
+        )
+      },
+      (error) => {
+        console.error('Failed to subscribe to user notifications:', error)
+      },
+    )
+  } catch (error) {
+    console.error('Failed to set up notification subscriptions:', error)
+  }
 }
 
 const loadNotifications = async () => {
@@ -325,17 +334,6 @@ const markAllAsRead = () => {
   notifications.value = notifications.value.map((item) => ({ ...item, isUnread: false }))
 }
 
-const onNotificationMenuOpen = () => {
-  if (!notifications.value.length) {
-    loadNotifications()
-  }
-}
-
-const openNotification = (notification: NotificationItem) => {
-  router.push({ name: notification.routeName })
-  isNotificationMenuOpen.value = false
-}
-
 // Emit event to parent for drawer toggle
 const emit = defineEmits(['toggle-drawer'])
 
@@ -365,7 +363,22 @@ onMounted(() => {
   const saved = localStorage.getItem(notificationStorageKey.value)
   const parsed = Number(saved)
   lastReadAtMs.value = Number.isFinite(parsed) ? parsed : 0
-  loadNotifications()
+  subscribeToNotifications()
+})
+
+onBeforeUnmount(() => {
+  if (unsubscribeGoods) {
+    unsubscribeGoods()
+    unsubscribeGoods = null
+  }
+  if (unsubscribeUsers) {
+    unsubscribeUsers()
+    unsubscribeUsers = null
+  }
+  if (unsubscribeProducts) {
+    unsubscribeProducts()
+    unsubscribeProducts = null
+  }
 })
 </script>
 
@@ -376,14 +389,5 @@ onMounted(() => {
 
 .gap-2 {
   gap: 8px;
-}
-
-.notification-card {
-  max-height: 500px;
-  overflow: hidden;
-}
-
-.notification-item {
-  cursor: pointer;
 }
 </style>

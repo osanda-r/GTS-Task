@@ -15,11 +15,27 @@
       <v-card-text class="pt-6 pb-4">
         <v-row dense>
           <v-col cols="12" md="2">
-            <FormField label="Color" v-model="form.color" placeholder="Enter Color" />
+            <FormField
+              label="Color"
+              v-model="form.color"
+              placeholder="Enter Color"
+              :error="showColorError"
+              :show-required-text="showColorError"
+              required-text="Color is required"
+              @blur="touched.color = true"
+            />
           </v-col>
 
           <v-col cols="12" md="2">
-            <FormField label="Type" v-model="form.type" placeholder="Enter Type" />
+            <FormField
+              label="Type"
+              v-model="form.type"
+              placeholder="Enter Type"
+              :error="showTypeError"
+              :show-required-text="showTypeError"
+              required-text="Type is required"
+              @blur="touched.type = true"
+            />
           </v-col>
 
           <v-col cols="12" md="2">
@@ -39,6 +55,10 @@
               label="Moisture (%)"
               v-model="form.moisture"
               placeholder="Enter Moisture %"
+              :error="showMoistureError"
+              :show-required-text="showMoistureError"
+              :required-text="moistureErrorMessage"
+              @blur="touched.moisture = true"
             />
           </v-col>
 
@@ -268,7 +288,10 @@ const form = ref({
 })
 
 const touched = ref({
+  color: false,
+  type: false,
   grossWeight: false,
+  moisture: false,
 })
 
 const editForm = ref({
@@ -282,10 +305,29 @@ const editForm = ref({
 })
 
 const editTouched = ref({
+  color: false,
+  type: false,
   grossWeight: false,
+  moisture: false,
 })
 
+const showColorError = computed(() => touched.value.color && !form.value.color.trim())
+const showTypeError = computed(() => touched.value.type && !form.value.type.trim())
 const showWeightError = computed(() => touched.value.grossWeight && !form.value.grossWeight.trim())
+const showMoistureError = computed(() => {
+  if (!touched.value.moisture) return false
+  if (!form.value.moisture.trim()) return false
+  const moisture = Number(form.value.moisture)
+  return !Number.isFinite(moisture) || moisture < 0 || moisture > 100
+})
+const moistureErrorMessage = computed(() => {
+  const moisture = Number(form.value.moisture)
+  if (!Number.isFinite(moisture)) return 'Must be a valid number'
+  if (moisture < 0) return 'Moisture cannot be negative'
+  if (moisture > 100) return 'Moisture cannot exceed 100%'
+  return 'Enter value between 0-100'
+})
+
 const showEditWeightError = computed(
   () => editTouched.value.grossWeight && !editForm.value.grossWeight.trim(),
 )
@@ -517,7 +559,12 @@ const clearForm = () => {
     supplier: '',
     remark: '',
   }
-  touched.value.grossWeight = false
+  touched.value = {
+    color: false,
+    type: false,
+    grossWeight: false,
+    moisture: false,
+  }
 }
 
 const openViewDialog = (record: GoodsRecord) => {
@@ -556,7 +603,12 @@ const updateRecord = async () => {
   }
 
   editTouched.value.grossWeight = true
-  if (showEditWeightError.value || isUpdating.value) return
+  if (showEditWeightError.value) {
+    showToast('Gross weight is required.', 'warning')
+    return
+  }
+
+  if (isUpdating.value) return
 
   const grossWeight = Number(editForm.value.grossWeight)
   const moisture = Number(editForm.value.moisture || 0)
@@ -572,13 +624,13 @@ const updateRecord = async () => {
 
     const actualWeight = Math.max(grossWeight - moisture, 0)
     await updateDoc(doc(db, 'goodsReceived', editForm.value.id), {
-      color: editForm.value.color ?? '',
-      type: editForm.value.type ?? '',
+      color: editForm.value.color.trim(),
+      type: editForm.value.type.trim(),
       grossWeight,
       moisture,
       actualWeight,
-      supplier: editForm.value.supplier ?? '',
-      remark: editForm.value.remark ?? '',
+      supplier: editForm.value.supplier.trim() ?? '',
+      remark: editForm.value.remark.trim(),
     })
 
     goods.value = goods.value.map((row) => {
@@ -611,8 +663,31 @@ const saveRecord = async () => {
     return
   }
 
-  touched.value.grossWeight = true
-  if (showWeightError.value || isSaving.value) return
+  // Mark all fields as touched to show errors
+  touched.value = {
+    color: true,
+    type: true,
+    grossWeight: true,
+    moisture: true,
+  }
+
+  // Check for validation errors
+  if (showColorError.value) {
+    showToast('Color is required.', 'warning')
+    return
+  }
+  if (showTypeError.value) {
+    showToast('Type is required.', 'warning')
+    return
+  }
+  if (showWeightError.value) {
+    showToast('Gross weight is required.', 'warning')
+    return
+  }
+  if (showMoistureError.value) {
+    showToast(moistureErrorMessage.value, 'warning')
+    return
+  }
 
   const grossWeight = Number(form.value.grossWeight)
   const moisture = Number(form.value.moisture || 0)
@@ -621,6 +696,7 @@ const saveRecord = async () => {
     return
   }
 
+  if (isSaving.value) return
   isSaving.value = true
   try {
     const hasSession = await ensureFirebaseSession()
@@ -630,13 +706,13 @@ const saveRecord = async () => {
     const actualWeight = Math.max(grossWeight - moisture, 0)
     const docRef = await addDoc(goodsCollection, {
       grn,
-      color: form.value.color ?? '',
-      type: form.value.type ?? '',
+      color: form.value.color.trim(),
+      type: form.value.type.trim(),
       grossWeight,
       moisture,
       actualWeight,
-      supplier: form.value.supplier ?? '',
-      remark: form.value.remark,
+      supplier: form.value.supplier.trim() ?? '',
+      remark: form.value.remark.trim(),
       createdAt: serverTimestamp(),
     })
 
