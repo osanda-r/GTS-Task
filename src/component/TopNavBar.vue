@@ -3,7 +3,7 @@
     <!-- menu icon -->
     <v-app-bar-nav-icon @click="toggleDrawer"></v-app-bar-nav-icon>
 
-    <div class="d-flex align-center gap-2 ml-2">
+    <div class="d-none d-sm-flex align-center gap-2 ml-2">
       <v-btn variant="text" color="grey-darken-2" class="text-none" @click="goHome">
         <v-icon start>mdi-home-outline</v-icon>
         Home
