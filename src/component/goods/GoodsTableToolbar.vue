@@ -1,0 +1,101 @@
+<template>
+  <div class="table-head px-6 py-4 d-flex flex-wrap align-center">
+    <div class="d-flex align-center mr-6 mb-3 mb-md-0">
+      <v-icon :icon="icon" size="28" class="mr-3"></v-icon>
+      <h3 class="text-h5 font-weight-bold mr-3">{{ title }}</h3>
+      <v-chip :color="chipColor" variant="tonal">{{ recordCount }} Records</v-chip>
+    </div>
+
+    <v-spacer></v-spacer>
+
+    <v-text-field
+      :model-value="search"
+      :placeholder="searchPlaceholder"
+      prepend-inner-icon="mdi-magnify"
+      hide-details
+      variant="outlined"
+      density="comfortable"
+      rounded="pill"
+      class="search-input mr-4 mb-3 mb-md-0"
+      @update:model-value="$emit('update:search', $event)"
+    ></v-text-field>
+
+    <div v-if="hasActionPermission" class="d-flex align-center flex-wrap action-buttons">
+      <v-btn
+        color="info"
+        variant="tonal"
+        rounded="pill"
+        prepend-icon="mdi-refresh"
+        :loading="isLoading"
+        @click="$emit('refresh')"
+      >
+        Refresh
+      </v-btn>
+      <v-btn
+        v-if="showExportImport"
+        color="success"
+        variant="tonal"
+        rounded="pill"
+        prepend-icon="mdi-download"
+        @click="$emit('export')"
+      >
+        Export
+      </v-btn>
+      <v-btn
+        v-if="showExportImport"
+        color="success"
+        variant="tonal"
+        rounded="pill"
+        prepend-icon="mdi-upload"
+        @click="$emit('import')"
+      >
+        Import
+      </v-btn>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    search: string
+    recordCount: number
+    isLoading: boolean
+    hasActionPermission: boolean
+    title?: string
+    icon?: string
+    chipColor?: string
+    searchPlaceholder?: string
+    showExportImport?: boolean
+  }>(),
+  {
+    title: 'Goods Received',
+    icon: 'mdi-cube-outline',
+    chipColor: 'success',
+    searchPlaceholder: 'Search goods received...',
+    showExportImport: true,
+  },
+)
+
+defineEmits<{
+  'update:search': [value: string]
+  refresh: []
+  export: []
+  import: []
+}>()
+</script>
+
+<style scoped>
+.table-head {
+  background: #dfe4e8;
+}
+
+.search-input {
+  min-width: 300px;
+  max-width: 420px;
+}
+
+.action-buttons {
+  gap: 10px;
+}
+</style>

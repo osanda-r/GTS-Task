@@ -1,76 +1,76 @@
-import { ref, onMounted } from "vue";
-import { auth } from "@/plugins/firebase";
-import { useRouter } from "vue-router";
-import type { User } from "firebase/auth";
-import type { Ref } from "vue";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { ref, onMounted, onUnmounted } from 'vue'
+import { auth } from '@/plugins/firebase'
+import router from '@/router'
+import type { User } from 'firebase/auth'
+import type { Ref } from 'vue'
+import { signInWithEmailAndPassword } from 'firebase/auth'
 
 // Custom hook to manage authentication
 export default function useAuth() {
-  const user: Ref<User | null> = ref(null);
-  const token: Ref<string | null> = ref(null);
-  const router = useRouter();
+  const user: Ref<User | null> = ref(null)
+  const token: Ref<string | null> = ref(null)
+  let unsubscribeAuth: (() => void) | null = null
 
-  const setUser = (firebaseUser : User) => {
-    user.value = firebaseUser;
-    firebaseUser
-      .getIdToken(true) // Force refresh the token to get a fresh one
-      .then((idToken) => {
-        token.value = idToken;
-        localStorage.setItem("firebaseToken", idToken); // Save token in localStorage
-      })
-      .catch((error) => console.error("Token Error: ", error));
-  };
+  const setUser = async (firebaseUser: User) => {
+    user.value = firebaseUser
+    try {
+      token.value = await firebaseUser.getIdToken()
+    } catch (error) {
+      console.error('Token Error:', error)
+      token.value = null
+    }
+  }
 
   const refreshToken = async () => {
     try {
       if (auth.currentUser) {
-        const refreshedToken = await auth.currentUser.getIdToken(true);
-        token.value = refreshedToken;
-        localStorage.setItem("firebaseToken", refreshedToken);
+        const refreshedToken = await auth.currentUser.getIdToken(true)
+        token.value = refreshedToken
       } else {
-        console.error("No current user to refresh token.");
+        console.error('No current user to refresh token.')
       }
     } catch (error) {
-      console.error("Error refreshing token:", error);
+      console.error('Error refreshing token:', error)
     }
-  };
+  }
 
   const logout = async () => {
-    await auth.signOut();
-    user.value = null;
-    token.value = null;
-    localStorage.removeItem("firebaseToken");
-    await router.push("/login"); // Redirect to Log in
-  };
+    await auth.signOut()
+    user.value = null
+    token.value = null
+    await router.push({ name: 'Login' })
+  }
 
   const login = async (email: string, password: string) => {
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      setUser(result.user);
-      return { success: true };
-    } catch (error: never) {
-      return { success: false, error: error.message ?? 'Login failed' }
+      const result = await signInWithEmailAndPassword(auth, email, password)
+      setUser(result.user)
+      return { success: true }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Login failed'
+      return { success: false, error: message }
     }
-  };
+  }
 
-  const handleAuthStateChanged = (firebaseUser: User | null) => {
+  const handleAuthStateChanged = async (firebaseUser: User | null) => {
     if (firebaseUser) {
-      setUser(firebaseUser);
+      await setUser(firebaseUser)
     } else {
-      user.value = null;
-      token.value = null;
-      localStorage.removeItem("firebaseToken");
+      user.value = null
+      token.value = null
     }
-  };
+  }
 
   onMounted(() => {
-    // Listen for user authentication state changes
-    const unsubscribe = auth.onAuthStateChanged(handleAuthStateChanged);
+    unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
+      void handleAuthStateChanged(firebaseUser)
+    })
+  })
 
-    // Clean up the subscription on component unmount
-    return () => unsubscribe();
-  });
+  onUnmounted(() => {
+    unsubscribeAuth?.()
+    unsubscribeAuth = null
+  })
 
   return {
     user,
@@ -78,5 +78,5 @@ export default function useAuth() {
     refreshToken,
     logout,
     login,
-  };
+  }
 }

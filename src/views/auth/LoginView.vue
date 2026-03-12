@@ -3,15 +3,12 @@
     <v-row align="center" justify="center">
       <v-col cols="12" sm="8" md="5" lg="4" xl="3">
         <v-card class="login-card elevation-12" rounded="lg">
-          <div class="text-center pt-8 pb-4">
-            <v-avatar color="primary" size="80" class="mb-4">
-              <v-icon size="40" color="white">mdi-account-circle</v-icon>
-            </v-avatar>
-            <h2 class="text-h4 font-weight-bold mb-2">Welcome Back</h2>
-            <p class="text-grey">Sign in to continue</p>
+          <div class="text-center pt-10 pb-6">
+            <h2 class="text-h4 font-weight-bold mb-3">Welcome Back</h2>
+            <p class="text-grey subtitle-text">Login to continue</p>
           </div>
 
-          <v-card-text class="px-8 pb-0">
+          <v-card-text class="px-8 pb-8">
             <v-form ref="form" v-model="valid" @submit.prevent="handleLogin">
               <v-text-field
                 v-model="email"
@@ -20,7 +17,7 @@
                 prepend-inner-icon="mdi-email-outline"
                 variant="outlined"
                 color="primary"
-                class="mb-3"
+                class="mb-5"
                 density="comfortable"
                 required
               ></v-text-field>
@@ -35,22 +32,10 @@
                 @click:append-inner="togglePasswordVisibility"
                 variant="outlined"
                 color="primary"
+                class="mb-6"
                 density="comfortable"
                 required
               ></v-text-field>
-
-              <div class="d-flex justify-space-between align-center mb-4">
-                <v-checkbox
-                  v-model="rememberMe"
-                  label="Remember me"
-                  color="primary"
-                  density="compact"
-                  hide-details
-                ></v-checkbox>
-                <a href="#" class="text-primary text-decoration-none">
-                  Forgot password?
-                </a>
-              </div>
 
               <v-btn
                 type="submit"
@@ -59,22 +44,13 @@
                 block
                 size="large"
                 color="primary"
-                class="mb-4 text-none"
+                class="mb-5 text-none sign-in-btn"
                 rounded="lg"
               >
-                Sign In
+                LOGIN
               </v-btn>
 
-              <v-alert v-if="errorMessage" type="error" class="mb-4">{{ errorMessage }}</v-alert>
-
-              <v-divider class="mb-4"></v-divider>
-
-              <div class="text-center mb-4">
-                <span class="text-grey">Don't have an account? </span>
-                <a href="#" class="text-primary text-decoration-none font-weight-bold">
-                  Sign Up
-                </a>
-              </div>
+              <v-alert v-if="errorMessage" type="error" class="mt-2">{{ errorMessage }}</v-alert>
             </v-form>
           </v-card-text>
         </v-card>
@@ -85,64 +61,61 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import inputValidator from '@/helpers/utils/inputValidator'
 import useAuth from '@/composables/useAuth'
 
+interface FormValidation {
+  validate: () => Promise<{ valid: boolean }>
+}
+
 // Reactive state
-const form = ref(null)
+const form = ref<FormValidation | null>(null)
 const valid = ref(false)
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
-const rememberMe = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
-
-// Authentication logic
+const router = useRouter()
 const { login } = useAuth()
 
-// Email validation rules
+//validation rules
 const emailRules = [
-  v => !!v || 'Email is required',
-  v => /.+@.+\..+/.test(v) || 'E-mail must be valid'
+  (v: string) => !!v || 'Email is required',
+  (v: string) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
 ]
-
-// Password validation rules
 const passwordRules = inputValidator('Password').required().minChar(6).getRules()
-
-// Toggle password visibility
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
 }
 
-// Handle form submission (login logic)
+// Handle form submission
 const handleLogin = async () => {
   errorMessage.value = ''
-  const { valid: isValid } = await form.value.validate()
+  const validation = await form.value?.validate()
+  const isValid = validation?.valid ?? false
   if (!isValid) return
 
   loading.value = true
   const result = await login(email.value, password.value)
   loading.value = false
 
-  // If login is successful, redirect
   if (result.success) {
-    window.location.href = '/'
+    await router.push({ name: 'Dashboard' })
     return
   }
 
-  // Handle Firebase error codes
-  handleFirebaseError(result.error)
+  //error handling
+  handleFirebaseError(result.error ?? 'Login failed')
 }
-
-// Firebase error handler (simplified)
 const handleFirebaseError = (error: string) => {
   if (error.startsWith('Firebase: Error (')) {
     const match = error.match(/\(auth\/[\w-]+\)/)
     if (match) error = match[0].replace(/[()]/g, '')
   }
 
-  // Map error codes to user-friendly messages
+  //error codes for user-friendly messages
   switch (error) {
     case 'auth/invalid-email':
       errorMessage.value = 'Invalid email format. Please try again.'
@@ -167,26 +140,40 @@ const handleFirebaseError = (error: string) => {
 
 <style scoped>
 .login-container {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
-}
-
-.login-card {
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95) !important;
 }
 
 .text-grey {
   color: #757575;
 }
 
+.subtitle-text {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.sign-in-btn {
+  padding: 14px 0 !important;
+  height: 50px !important;
+  font-size: 1rem;
+}
+
 :deep(.v-field--variant-outlined) {
   border-radius: 12px;
 }
 
+:deep(.v-field__input) {
+  padding: 14px 16px;
+  min-height: 52px;
+}
+
 :deep(.v-btn) {
   text-transform: none;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   font-weight: 600;
+}
+
+:deep(.v-alert) {
+  border-radius: 12px;
 }
 </style>

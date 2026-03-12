@@ -1,7 +1,5 @@
-import type { RouteRecordRaw } from 'vue-router'
-
-const routes: RouteRecordRaw[] = [
-  // AUTH LAYOUT (Blank)
+const routes = [
+  // Auth layout
   {
     path: '/auth',
     component: () => import('@/layouts/BlankLayout.vue'),
@@ -10,80 +8,93 @@ const routes: RouteRecordRaw[] = [
         path: 'login',
         name: 'Login',
         component: () => import('@/views/auth/LoginView.vue'),
-        meta: { title: 'Sign In' }
+        meta: { title: 'Sign In' },
       },
     ],
   },
 
-  // Redirects
-  // {
-  //   path: '',
-  //   redirect: '/dashboard'
-  // },
-
+  // App shell
   {
-    path: '',
-    redirect: '/x'
-  },
-
-  // Dashboard
-  {
-    path: '/x',
+    path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
+    meta: {
+      requiresAuth: true,
+    },
     children: [
       {
-        path: 'dash',
+        path: '',
+        redirect: '/auth/login',
+      },
+      {
+        path: 'dashboard',
         name: 'Dashboard',
-        component: () => import('@/views/sample/SampleView.vue'),
+        component: () => import('@/views/dashboard/DashboardView.vue'),
         meta: {
           title: 'Dashboard',
           icon: 'mdi-view-dashboard',
-          showInSidebar: true
-        }
-      },
-      {
-        path: 'dash2',
-        name: 'Dashboardx',
-        component: () => import('@/views/sample/SampleView.vue'),
-        meta: {
-          title: 'Dashboardx',
-          icon: 'mdi-view-dashboard',
-          showInSidebar: true
-        }
-      },
-      {
-        path: 'list',
-        name: 'List',
-        component: () => import('@/views/sample/SampleView.vue'),
-        meta: {
-          title: 'List',
-          icon: 'mdi-format-list-bulleted',
-          showInSidebar: true
+          showInSidebar: true,
         },
-        children: [
-          {
-            path: 'view-1',
-            name: 'ListView1',
-            component: () => import('@/views/sample/SampleView.vue'),
-            meta: {
-              title: 'List View 1',
-              icon: 'mdi-eye',
-              showInSidebar: true
-            }
-          },
-          {
-            path: 'view-2',
-            name: 'ListView2',
-            component: () => import('@/views/sample/SampleView.vue'),
-            meta: {
-              title: 'List View 2',
-              icon: 'mdi-eye-outline',
-              showInSidebar: true
-            }
-          }
-        ]
-      }
-    ]
+      },
+      {
+        path: 'goods-received',
+        name: 'GoodsReceived',
+        component: () => import('@/views/product/GoodsReceivedView.vue'),
+        meta: {
+          title: 'Goods Received',
+          icon: 'mdi-truck-delivery',
+          showInSidebar: true,
+          requiredPermission: 'page.goods_received.view',
+        },
+      },
+      {
+        path: 'products/add',
+        name: 'AddProduct',
+        component: () => import('@/views/product/AddProductView.vue'),
+        meta: {
+          title: 'Add Product',
+          requiredPermission: 'page.products.create',
+        },
+      },
+      {
+        path: 'users',
+        name: 'Users',
+        component: () => import('@/views/users/UsersView.vue'),
+        meta: {
+          title: 'Users',
+          icon: 'mdi-account-multiple',
+          showInSidebar: true,
+          requiredPermission: 'page.users.view',
+        },
+      },
+      {
+        path: 'users/add',
+        name: 'AddUser',
+        component: () => import('@/views/users/AddUserView.vue'),
+        meta: {
+          title: 'Add New User',
+          requiredPermission: 'page.users.create',
+        },
+      },
+      {
+        path: 'roles',
+        name: 'Roles',
+        component: () => import('@/views/roles/RolesView.vue'),
+        meta: {
+          title: 'Roles',
+          icon: 'mdi-shield-account',
+          showInSidebar: true,
+          requiredPermission: 'page.roles.view',
+        },
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/ProfileView.vue'),
+        meta: {
+          title: 'Profile',
+        },
+      },
+    ],
   },
 
   // 404
@@ -91,8 +102,8 @@ const routes: RouteRecordRaw[] = [
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/errors/NotFoundView.vue'),
-    meta: { title: 'Page Not Found', type: 'hidden' }
-  }
+    meta: { title: 'Page Not Found', type: 'hidden' },
+  },
 ]
 
 export { routes }
