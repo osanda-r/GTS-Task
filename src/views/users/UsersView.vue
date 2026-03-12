@@ -14,6 +14,7 @@
           :search="search"
           :record-count="users.length"
           :is-loading="loading"
+          :show-export-import="canExportImport"
           @update:search="search = $event"
           @refresh="loadUsers"
           @export="handleExport"
@@ -221,6 +222,7 @@ const canEdit = computed(
 const canDelete = computed(
   () => isAdministrator.value || userPermissions.value.includes('page.users.delete'),
 )
+const canExportImport = computed(() => canCreate.value || canEdit.value || canDelete.value)
 
 const loadUserPermissions = async () => {
   try {
@@ -393,6 +395,11 @@ const confirmDeleteUser = async () => {
 }
 
 const handleExport = () => {
+  if (!canExportImport.value) {
+    showToast('You do not have permission to export users.', 'error')
+    return
+  }
+
   try {
     const rows = filteredUsers.value.map((user) => ({
       UID: user.uid,

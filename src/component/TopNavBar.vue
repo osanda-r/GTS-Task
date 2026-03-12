@@ -29,7 +29,7 @@
       />
 
       <!-- profile menu -->
-      <v-menu offset-y>
+      <v-menu offset-y location="bottom end">
         <template v-slot:activator="{ props }">
           <v-btn v-bind="props" variant="text" class="text-none ml-2" style="text-transform: none">
             <v-avatar color="primary" size="40" class="mr-2">
@@ -40,19 +40,13 @@
           </v-btn>
         </template>
 
-        <v-list>
-          <v-list-item @click="goToProfile">
-            <template v-slot:prepend>
-              <v-icon>mdi-account</v-icon>
-            </template>
-            <v-list-item-title>Profile</v-list-item-title>
+        <v-list class="profile-menu-list py-1" density="comfortable">
+          <v-list-item @click="goToProfile" class="profile-menu-item" prepend-icon="mdi-account">
+            <v-list-item-title class="profile-menu-title">Profile</v-list-item-title>
           </v-list-item>
 
-          <v-list-item @click="logout">
-            <template v-slot:prepend>
-              <v-icon>mdi-logout</v-icon>
-            </template>
-            <v-list-item-title>Logout</v-list-item-title>
+          <v-list-item @click="logout" class="profile-menu-item" prepend-icon="mdi-logout">
+            <v-list-item-title class="profile-menu-title">Logout</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -372,5 +366,28 @@ onBeforeUnmount(() => {
 
 .gap-2 {
   gap: 8px;
+}
+
+.profile-menu-list {
+  min-width: 220px;
+}
+
+.profile-menu-item {
+  min-height: 44px;
+  padding-inline: 14px;
+}
+
+.profile-menu-item :deep(.v-list-item__prepend) {
+  align-self: center;
+  margin-right: 12px;
+}
+
+.profile-menu-item :deep(.v-icon) {
+  color: #6b7280;
+}
+
+.profile-menu-title {
+  font-size: 16px;
+  line-height: 1.25;
 }
 </style>

@@ -32,6 +32,7 @@
         Refresh
       </v-btn>
       <v-btn
+        v-if="showExportImport"
         color="success"
         variant="tonal"
         rounded="pill"
@@ -41,6 +42,7 @@
         Export
       </v-btn>
       <v-btn
+        v-if="showExportImport"
         color="success"
         variant="tonal"
         rounded="pill"
@@ -54,11 +56,17 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  search: string
-  recordCount: number
-  isLoading: boolean
-}>()
+withDefaults(
+  defineProps<{
+    search: string
+    recordCount: number
+    isLoading: boolean
+    showExportImport?: boolean
+  }>(),
+  {
+    showExportImport: true,
+  },
+)
 
 defineEmits<{
   'update:search': [value: string]
