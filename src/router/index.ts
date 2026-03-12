@@ -23,10 +23,6 @@ router.beforeEach(async (to, from, next) => {
       return next({ name: 'Login' })
     }
 
-    if (to.name === 'Login' && auth.currentUser) {
-      return next({ name: 'Dashboard' })
-    }
-
     const requiredPermission = to.matched.find((record) => record.meta.requiredPermission)?.meta
       .requiredPermission as string | undefined
 

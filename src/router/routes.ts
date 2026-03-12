@@ -23,7 +23,7 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/dashboard',
+        redirect: '/auth/login',
       },
       {
         path: 'dashboard',
