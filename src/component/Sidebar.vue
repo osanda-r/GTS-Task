@@ -211,12 +211,21 @@ const isActive = (path: string) => {
   letter-spacing: 2px;
 }
 
+.v-list-item {
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
 .v-list-item--active {
   background-color: #44ff0033 !important;
 }
 
 .v-list-item:hover {
-  background-color: #2f85332a;
+  background: linear-gradient(90deg, #eef4ff 0%, #f7faff 100%);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+  transform: translateX(2px);
 }
 
 .v-list-subheader {
