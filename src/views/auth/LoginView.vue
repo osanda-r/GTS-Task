@@ -61,6 +61,7 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import inputValidator from '@/helpers/utils/inputValidator'
 import useAuth from '@/composables/useAuth'
 
@@ -76,6 +77,7 @@ const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
+const router = useRouter()
 const { login } = useAuth()
 
 //validation rules
@@ -100,7 +102,7 @@ const handleLogin = async () => {
   loading.value = false
 
   if (result.success) {
-    window.location.href = '/'
+    await router.push({ name: 'Dashboard' })
     return
   }
 
